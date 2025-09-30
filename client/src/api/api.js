@@ -1,25 +1,23 @@
 import axios from 'axios';
 
-const getApiUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  
-  if (typeof window !== 'undefined' && window.location.hostname.includes('replit.dev')) {
-    const backendHost = window.location.hostname.replace('-5000', '-8080');
-    return `https://${backendHost}/api`;
-  }
-  
-  return 'http://localhost:8080/api';
-};
-
-const API_URL = getApiUrl();
-
 const api = axios.create({
-  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  if (!config.baseURL) {
+    if (import.meta.env.VITE_API_URL) {
+      config.baseURL = import.meta.env.VITE_API_URL;
+    } else if (typeof window !== 'undefined' && window.location.hostname.includes('replit.dev')) {
+      const backendHost = window.location.hostname.replace('-5000', '-8080');
+      config.baseURL = `https://${backendHost}/api`;
+    } else {
+      config.baseURL = 'http://localhost:8080/api';
+    }
+  }
+  return config;
 });
 
 export const employeeAPI = {
