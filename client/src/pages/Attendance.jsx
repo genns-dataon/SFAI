@@ -47,67 +47,93 @@ const Attendance = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Attendance</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-secondary-900">Attendance</h1>
+          <p className="text-secondary-600 mt-1">Track employee clock-in and clock-out times</p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700"
+          className="btn btn-success flex items-center gap-2"
         >
-          <Clock className="w-5 h-5 mr-2" />
+          <Clock className="w-5 h-5" />
           Clock In
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
+      <div className="table-container">
+        <table className="table-base">
+          <thead className="table-header">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clock In</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Clock Out</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+              <th className="table-header-cell">Employee</th>
+              <th className="table-header-cell">Date</th>
+              <th className="table-header-cell">Clock In</th>
+              <th className="table-header-cell">Clock Out</th>
+              <th className="table-header-cell">Location</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {attendances.map((att) => (
-              <tr key={att.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {att.employee ? att.employee.name : `Employee ${att.employee_id}`}
+          <tbody>
+            {attendances.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center py-12 text-secondary-500">
+                  <Clock className="w-12 h-12 mx-auto mb-2 text-secondary-300" />
+                  <p>No attendance records found</p>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {att.date ? new Date(att.date).toLocaleDateString() : 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {att.clock_in ? new Date(att.clock_in).toLocaleTimeString() : 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {att.clock_out ? new Date(att.clock_out).toLocaleTimeString() : '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{att.location || '-'}</td>
               </tr>
-            ))}
+            ) : (
+              attendances.map((att) => (
+                <tr key={att.id} className="table-row">
+                  <td className="table-cell">
+                    <div className="font-medium text-secondary-900">
+                      {att.employee ? att.employee.name : `Employee ${att.employee_id}`}
+                    </div>
+                  </td>
+                  <td className="table-cell text-secondary-600">
+                    {att.date ? new Date(att.date).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="table-cell">
+                    <span className="badge badge-success">
+                      {att.clock_in ? new Date(att.clock_in).toLocaleTimeString() : 'N/A'}
+                    </span>
+                  </td>
+                  <td className="table-cell">
+                    {att.clock_out ? (
+                      <span className="badge badge-danger">
+                        {new Date(att.clock_out).toLocaleTimeString()}
+                      </span>
+                    ) : (
+                      <span className="text-secondary-400">-</span>
+                    )}
+                  </td>
+                  <td className="table-cell text-secondary-600">{att.location || '-'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Clock In</h2>
-            <form onSubmit={handleClockIn}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Employee</label>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md transform transition-all">
+            <h2 className="text-2xl font-bold text-secondary-900 mb-6">Clock In</h2>
+            <form onSubmit={handleClockIn} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Employee</label>
                 <select
                   required
                   value={formData.employee_id}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className="input-field"
                 >
                   <option value="">Select Employee</option>
                   {employees.map((emp) => (
@@ -117,27 +143,27 @@ const Attendance = () => {
                   ))}
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Location</label>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Location</label>
                 <input
                   type="text"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   placeholder="e.g., Office, Remote"
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                  className="input-field"
                 />
               </div>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  className="btn btn-success"
                 >
                   Clock In
                 </button>

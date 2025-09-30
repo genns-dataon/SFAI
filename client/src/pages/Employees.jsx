@@ -49,132 +49,162 @@ const Employees = () => {
   );
 
   if (loading) {
-    return <div className="text-center py-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Employees</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-secondary-900">Employees</h1>
+          <p className="text-secondary-600 mt-1">Manage your workforce and team members</p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700"
+          className="btn btn-primary flex items-center gap-2"
         >
-          <Plus className="w-5 h-5 mr-2" />
+          <Plus className="w-5 h-5" />
           Add Employee
         </button>
       </div>
 
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search employees..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" />
+        <input
+          type="text"
+          placeholder="Search employees by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="input-field pl-12"
+        />
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
+      <div className="table-container">
+        <table className="table-base">
+          <thead className="table-header">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hire Date</th>
+              <th className="table-header-cell">Name</th>
+              <th className="table-header-cell">Email</th>
+              <th className="table-header-cell">Job Title</th>
+              <th className="table-header-cell">Department</th>
+              <th className="table-header-cell">Hire Date</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredEmployees.map((emp) => (
-              <tr key={emp.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">{emp.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{emp.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{emp.job_title}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {emp.department ? emp.department.name : 'N/A'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {emp.hire_date ? new Date(emp.hire_date).toLocaleDateString() : 'N/A'}
+          <tbody>
+            {filteredEmployees.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center py-12 text-secondary-500">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-secondary-300" />
+                  <p>No employees found</p>
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredEmployees.map((emp) => (
+                <tr key={emp.id} className="table-row">
+                  <td className="table-cell">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-primary-700 font-semibold text-sm">
+                          {emp.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                      <div className="font-medium text-secondary-900">{emp.name}</div>
+                    </div>
+                  </td>
+                  <td className="table-cell text-secondary-600">{emp.email}</td>
+                  <td className="table-cell">
+                    <span className="badge badge-info">{emp.job_title}</span>
+                  </td>
+                  <td className="table-cell">
+                    <span className="text-secondary-900 font-medium">
+                      {emp.department ? emp.department.name : 'N/A'}
+                    </span>
+                  </td>
+                  <td className="table-cell text-secondary-600">
+                    {emp.hire_date ? new Date(emp.hire_date).toLocaleDateString() : 'N/A'}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Add New Employee</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Name</label>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md transform transition-all">
+            <h2 className="text-2xl font-bold text-secondary-900 mb-6">Add New Employee</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Name</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="input-field"
+                  placeholder="John Doe"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Email</label>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Email</label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="input-field"
+                  placeholder="john.doe@company.com"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Job Title</label>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Job Title</label>
                 <input
                   type="text"
                   required
                   value={formData.job_title}
                   onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="input-field"
+                  placeholder="Software Engineer"
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Department</label>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Department</label>
                 <select
                   value={formData.department_id}
                   onChange={(e) => setFormData({ ...formData, department_id: Number(e.target.value) })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="input-field"
                 >
                   <option value={1}>Engineering</option>
                   <option value={2}>Human Resources</option>
                   <option value={3}>Sales</option>
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Hire Date</label>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">Hire Date</label>
                 <input
                   type="date"
                   required
                   value={formData.hire_date}
                   onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="input-field"
                 />
               </div>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="btn btn-primary"
                 >
                   Add Employee
                 </button>
