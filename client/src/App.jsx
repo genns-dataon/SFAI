@@ -7,11 +7,13 @@ import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import Salary from './pages/Salary';
 import OrganizationChart from './pages/OrganizationChart';
+import Login from './pages/Login';
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />

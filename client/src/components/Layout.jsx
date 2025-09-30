@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Layout as AntLayout, Menu, Typography, Button } from 'antd';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Layout as AntLayout, Menu, Typography, Button, Dropdown } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -10,7 +10,9 @@ import {
   BankOutlined,
   ApartmentOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  UserOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
 
 const { Sider, Content } = AntLayout;
@@ -18,8 +20,17 @@ const { Title, Text } = Typography;
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   // Detect screen size and auto-collapse on mobile
   useEffect(() => {
@@ -140,6 +151,7 @@ const Layout = () => {
           borderBottom: '1px solid #f0f0f0',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           position: 'sticky',
           top: 0,
           zIndex: 99
@@ -154,6 +166,30 @@ const Layout = () => {
               height: 40,
             }}
           />
+          
+          {user && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'logout',
+                    label: 'Logout',
+                    icon: <LogoutOutlined />,
+                    onClick: () => {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      navigate('/login');
+                    }
+                  }
+                ]
+              }}
+              placement="bottomRight"
+            >
+              <Button type="text" icon={<UserOutlined />}>
+                {user.username}
+              </Button>
+            </Dropdown>
+          )}
         </div>
         
         <Content style={{ background: '#f5f5f5', minHeight: 'calc(100vh - 64px)' }}>
