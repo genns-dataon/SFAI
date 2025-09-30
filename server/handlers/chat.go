@@ -275,9 +275,10 @@ func Chat(c *gin.Context) {
 
         // Check for leave request submissions
         leaveRequestKeywords := []string{
-                "request leave", "apply for leave", "take leave", "need leave",
-                "submit leave", "leave request", "time off", "vacation request",
-                "i want leave", "i need time off", "book leave",
+                "request leave", "apply for leave", "apply leave", "apply a leave",
+                "take leave", "need leave", "submit leave", "leave request",
+                "time off", "vacation request", "i want leave", "i need time off",
+                "book leave", "get leave",
         }
         isLeaveRequest := false
         for _, keyword := range leaveRequestKeywords {
