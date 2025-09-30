@@ -1,6 +1,7 @@
 package handlers
 
 import (
+        "fmt"
         "net/http"
         "os"
         "time"
@@ -25,7 +26,7 @@ type SignupRequest struct {
 }
 
 func hashPassword(password string) (string, error) {
-        bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+        bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
         return string(bytes), err
 }
 
@@ -35,13 +36,18 @@ func checkPassword(password, hash string) bool {
 }
 
 func generateToken(userID uint) (string, error) {
+        jwtSecret := os.Getenv("JWT_SECRET")
+        if jwtSecret == "" {
+                return "", fmt.Errorf("JWT_SECRET environment variable is required")
+        }
+
         claims := jwt.MapClaims{
                 "user_id": userID,
                 "exp":     time.Now().Add(time.Hour * 24).Unix(),
         }
 
         token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-        return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+        return token.SignedString([]byte(jwtSecret))
 }
 
 func Signup(c *gin.Context) {
