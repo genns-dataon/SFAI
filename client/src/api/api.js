@@ -7,17 +7,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (!config.baseURL) {
-    if (import.meta.env.VITE_API_URL) {
-      config.baseURL = import.meta.env.VITE_API_URL;
-    } else if (typeof window !== 'undefined' && window.location.hostname.includes('replit.dev')) {
-      const backendHost = window.location.hostname.replace('-5000', '-8080');
-      config.baseURL = `https://${backendHost}/api`;
-      console.log('API URL (Replit):', config.baseURL);
-    } else {
-      config.baseURL = 'http://localhost:8080/api';
-      console.log('API URL (Local):', config.baseURL);
-    }
+  if (import.meta.env.VITE_API_URL) {
+    config.baseURL = import.meta.env.VITE_API_URL;
+  } else if (typeof window !== 'undefined' && window.location.hostname.includes('replit.dev')) {
+    const backendHost = window.location.hostname.replace('-00-', '-8080-00-');
+    config.baseURL = `https://${backendHost}/api`;
+  } else {
+    config.baseURL = 'http://localhost:8080/api';
   }
   return config;
 });
