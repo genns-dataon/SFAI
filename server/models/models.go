@@ -19,6 +19,30 @@ type Employee struct {
         ManagerID    *uint          `json:"manager_id"`
         Manager      *Employee      `gorm:"foreignKey:ManagerID" json:"manager,omitempty"`
         Reports      []Employee     `gorm:"foreignKey:ManagerID" json:"reports,omitempty"`
+        
+        EmployeeNumber      string     `json:"employee_number"`
+        DateOfBirth         *time.Time `json:"date_of_birth"`
+        NationalID          string     `json:"national_id"`
+        TaxID               string     `json:"tax_id"`
+        MaritalStatus       string     `json:"marital_status"`
+        
+        EmploymentType      string     `json:"employment_type"`
+        EmploymentStatus    string     `json:"employment_status" gorm:"default:'active'"`
+        JobLevel            string     `json:"job_level"`
+        WorkLocation        string     `json:"work_location"`
+        WorkArrangement     string     `json:"work_arrangement"`
+        
+        BaseSalary          float64    `json:"base_salary"`
+        PayFrequency        string     `json:"pay_frequency"`
+        Currency            string     `json:"currency" gorm:"default:'USD'"`
+        BankAccount         string     `json:"bank_account"`
+        BenefitEligibility  string     `json:"benefit_eligibility"`
+        
+        ProbationEndDate    *time.Time `json:"probation_end_date"`
+        PerformanceRating   string     `json:"performance_rating"`
+        Skills              string     `gorm:"type:text" json:"skills"`
+        TrainingCompleted   string     `gorm:"type:text" json:"training_completed"`
+        CareerNotes         string     `gorm:"type:text" json:"career_notes"`
 }
 
 type Department struct {
