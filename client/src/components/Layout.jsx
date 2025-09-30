@@ -12,7 +12,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 
 const { Sider, Content } = AntLayout;
@@ -84,6 +85,11 @@ const Layout = () => {
       key: '/salary',
       icon: <DollarOutlined />,
       label: <Link to="/salary">Salary</Link>,
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: <Link to="/settings">Settings</Link>,
     },
   ];
 

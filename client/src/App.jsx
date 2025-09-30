@@ -7,6 +7,7 @@ import Attendance from './pages/Attendance';
 import Leave from './pages/Leave';
 import Salary from './pages/Salary';
 import OrganizationChart from './pages/OrganizationChart';
+import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="attendance" element={<Attendance />} />
           <Route path="leave" element={<Leave />} />
           <Route path="salary" element={<Salary />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
       <Chatbot />

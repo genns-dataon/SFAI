@@ -133,12 +133,63 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                                 "required": []string{"start_date", "end_date", "leave_type"},
                         },
                 }),
+                // Additional Employee Information Functions
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employee_details",
+                        Description: openai.String("Get detailed information about a specific employee including email, phone, job title, department, manager, etc."),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "employee_name": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "The employee's name (first name, last name, or full name)",
+                                        },
+                                },
+                                "required": []string{"employee_name"},
+                        },
+                }),
+                // Leave Request Query Functions
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "list_leave_requests",
+                        Description: openai.String("Get a list of leave requests, optionally filtered by month or date range"),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "month": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "Optional month filter in format 'YYYY-MM' (e.g., '2025-09' for September 2025) or 'this month', 'current month'",
+                                        },
+                                },
+                        },
+                }),
+                // Attendance Query Functions
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "list_todays_attendance",
+                        Description: openai.String("Get a list of employees who have clocked in today (who came to work today)"),
+                }),
+        }
+        
+        // Load chatbot settings and build system prompt
+        var settings []models.ChatbotSettings
+        database.DB.Find(&settings)
+        
+        systemPrompt := "You are an intelligent HR assistant that helps employees with various tasks including: viewing employee information, managing attendance (clock in/out), and submitting leave requests. Use the available functions to help users. Never make up information. Always be helpful and professional."
+        
+        // Append settings to system prompt
+        if len(settings) > 0 {
+                systemPrompt += "\n\n📋 Additional Configuration & Helpers:\n"
+                for _, setting := range settings {
+                        systemPrompt += fmt.Sprintf("\n• %s: %s", setting.Key, setting.Value)
+                        if setting.Description != "" {
+                                systemPrompt += fmt.Sprintf(" (%s)", setting.Description)
+                        }
+                }
         }
         
         // Initial API call
         params := openai.ChatCompletionNewParams{
                 Messages: []openai.ChatCompletionMessageParamUnion{
-                        openai.SystemMessage("You are an intelligent HR assistant that helps employees with various tasks including: viewing employee information, managing attendance (clock in/out), and submitting leave requests. Use the available functions to help users. Never make up information. Always be helpful and professional."),
+                        openai.SystemMessage(systemPrompt),
                         openai.UserMessage(userMessage),
                 },
                 Tools:  tools,
@@ -464,6 +515,125 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                         startDate.Format("Jan 02, 2006"), 
                         endDate.Format("Jan 02, 2006"), 
                         days)
+                return result, nil
+                
+        case "get_employee_details":
+                var args struct {
+                        EmployeeName string `json:"employee_name"`
+                }
+                if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
+                        return "", fmt.Errorf("invalid arguments: %v", err)
+                }
+                
+                var employee models.Employee
+                if err := database.DB.Preload("Department").Preload("Manager").
+                        Where("LOWER(name) LIKE ?", "%"+strings.ToLower(args.EmployeeName)+"%").
+                        First(&employee).Error; err != nil {
+                        return fmt.Sprintf("❌ Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), nil
+                }
+                
+                result := fmt.Sprintf("👤 Employee Details for %s:\n\n", employee.Name)
+                result += fmt.Sprintf("• ID: %d\n", employee.ID)
+                result += fmt.Sprintf("• Email: %s\n", employee.Email)
+                if employee.JobTitle != "" {
+                        result += fmt.Sprintf("• Job Title: %s\n", employee.JobTitle)
+                }
+                if employee.Department != nil {
+                        result += fmt.Sprintf("• Department: %s\n", employee.Department.Name)
+                }
+                if employee.Manager != nil {
+                        result += fmt.Sprintf("• Reports to: %s\n", employee.Manager.Name)
+                }
+                if !employee.HireDate.IsZero() {
+                        result += fmt.Sprintf("• Hire Date: %s\n", employee.HireDate.Format("Jan 02, 2006"))
+                }
+                if employee.WorkLocation != "" {
+                        result += fmt.Sprintf("• Work Location: %s\n", employee.WorkLocation)
+                }
+                return result, nil
+                
+        case "list_leave_requests":
+                var args struct {
+                        Month string `json:"month"`
+                }
+                json.Unmarshal([]byte(argumentsJSON), &args)
+                
+                var leaveRequests []models.LeaveRequest
+                query := database.DB.Preload("Employee")
+                
+                // Parse month filter if provided
+                if args.Month != "" {
+                        var year, month int
+                        if args.Month == "this month" || args.Month == "current month" {
+                                now := time.Now()
+                                year = now.Year()
+                                month = int(now.Month())
+                        } else {
+                                parsedTime, err := time.Parse("2006-01", args.Month)
+                                if err == nil {
+                                        year = parsedTime.Year()
+                                        month = int(parsedTime.Month())
+                                }
+                        }
+                        
+                        if year > 0 && month > 0 {
+                                startOfMonth := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+                                endOfMonth := startOfMonth.AddDate(0, 1, -1)
+                                query = query.Where("start_date >= ? AND start_date <= ?", startOfMonth, endOfMonth)
+                        }
+                }
+                
+                if err := query.Find(&leaveRequests).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                
+                if len(leaveRequests) == 0 {
+                        if args.Month != "" {
+                                return fmt.Sprintf("📅 No leave requests found for %s.", args.Month), nil
+                        }
+                        return "📅 No leave requests found.", nil
+                }
+                
+                result := "📅 Leave Requests:\n\n"
+                for i, lr := range leaveRequests {
+                        result += fmt.Sprintf("%d. %s\n", i+1, lr.Employee.Name)
+                        result += fmt.Sprintf("   • Type: %s\n", lr.LeaveType)
+                        result += fmt.Sprintf("   • Dates: %s to %s\n", 
+                                lr.StartDate.Format("Jan 02"), lr.EndDate.Format("Jan 02, 2006"))
+                        result += fmt.Sprintf("   • Status: %s\n", lr.Status)
+                        if i < len(leaveRequests)-1 {
+                                result += "\n"
+                        }
+                }
+                return result, nil
+                
+        case "list_todays_attendance":
+                var attendances []models.Attendance
+                if err := database.DB.Preload("Employee").
+                        Where("DATE(date) = CURRENT_DATE").
+                        Find(&attendances).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                
+                if len(attendances) == 0 {
+                        return "📊 No one has clocked in today yet.", nil
+                }
+                
+                result := fmt.Sprintf("📊 Today's Attendance (%s):\n\n", time.Now().Format("Jan 02, 2006"))
+                for i, att := range attendances {
+                        status := "Clocked In"
+                        timeInfo := fmt.Sprintf("at %s", att.ClockIn.Format("3:04 PM"))
+                        
+                        if att.ClockOut != nil {
+                                status = "Clocked Out"
+                                duration := att.ClockOut.Sub(att.ClockIn)
+                                hours := int(duration.Hours())
+                                minutes := int(duration.Minutes()) % 60
+                                timeInfo = fmt.Sprintf("(%dh %dm worked)", hours, minutes)
+                        }
+                        
+                        result += fmt.Sprintf("%d. %s - %s %s\n", i+1, att.Employee.Name, status, timeInfo)
+                }
                 return result, nil
                 
                 default:

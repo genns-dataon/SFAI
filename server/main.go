@@ -60,6 +60,14 @@ func main() {
                         protected.POST("/salary/payslip", handlers.GeneratePayslip)
 
                         protected.POST("/chat", handlers.Chat)
+                        
+                        protected.POST("/feedback", handlers.CreateFeedback)
+                        protected.GET("/feedback", handlers.GetAllFeedback)
+                        
+                        protected.GET("/settings", handlers.GetSettings)
+                        protected.GET("/settings/:key", handlers.GetSetting)
+                        protected.POST("/settings", handlers.UpsertSetting)
+                        protected.DELETE("/settings/:key", handlers.DeleteSetting)
                 }
         }
 

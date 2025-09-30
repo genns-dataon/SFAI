@@ -1,21 +1,28 @@
 import { useState, useRef, useEffect } from 'react';
-import { FloatButton, Card, Input, Button, Avatar, Space, Typography, Spin } from 'antd';
+import { FloatButton, Card, Input, Button, Avatar, Space, Typography, Spin, Modal, message as antMessage, Tooltip } from 'antd';
 import { 
   MessageOutlined, 
   SendOutlined, 
   CloseOutlined, 
   RobotOutlined, 
-  UserOutlined 
+  UserOutlined,
+  LikeOutlined,
+  DislikeOutlined,
+  LikeFilled,
+  DislikeFilled
 } from '@ant-design/icons';
-import { chatAPI } from '../api/api';
+import { chatAPI, feedbackAPI } from '../api/api';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState({ visible: false, messageIdx: null, rating: null });
+  const [feedbackComment, setFeedbackComment] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -29,20 +36,78 @@ const Chatbot = () => {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    const userMessage = { role: 'user', content: input };
+    const userMessage = { role: 'user', content: input, question: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
     try {
       const response = await chatAPI.sendMessage(input);
-      const botMessage = { role: 'bot', content: response.data.response };
+      const botMessage = { 
+        role: 'bot', 
+        content: response.data.response,
+        question: input,
+        feedback: null 
+      };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      const errorMessage = { role: 'bot', content: 'Sorry, something went wrong. Please try again.' };
+      const errorMessage = { role: 'bot', content: 'Sorry, something went wrong. Please try again.', question: input, feedback: null };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFeedback = async (messageIdx, rating) => {
+    const message = messages[messageIdx];
+    
+    if (rating === 'positive') {
+      // Thumbs up - immediately save feedback
+      try {
+        await feedbackAPI.create({
+          question: message.question,
+          response: message.content,
+          rating: 'positive',
+          comment: ''
+        });
+        
+        // Update message feedback state
+        setMessages(prev => prev.map((msg, idx) => 
+          idx === messageIdx ? { ...msg, feedback: 'positive' } : msg
+        ));
+        
+        antMessage.success('Thanks for your feedback!');
+      } catch (error) {
+        antMessage.error('Failed to save feedback');
+      }
+    } else {
+      // Thumbs down - show modal for comment
+      setFeedbackModal({ visible: true, messageIdx, rating: 'negative' });
+    }
+  };
+
+  const submitNegativeFeedback = async () => {
+    const { messageIdx } = feedbackModal;
+    const message = messages[messageIdx];
+
+    try {
+      await feedbackAPI.create({
+        question: message.question,
+        response: message.content,
+        rating: 'negative',
+        comment: feedbackComment
+      });
+      
+      // Update message feedback state
+      setMessages(prev => prev.map((msg, idx) => 
+        idx === messageIdx ? { ...msg, feedback: 'negative' } : msg
+      ));
+      
+      antMessage.success('Thanks for your feedback! We\'ll improve based on your input.');
+      setFeedbackModal({ visible: false, messageIdx: null, rating: null });
+      setFeedbackComment('');
+    } catch (error) {
+      antMessage.error('Failed to save feedback');
     }
   };
 
@@ -120,7 +185,8 @@ const Chatbot = () => {
                 key={idx}
                 style={{
                   display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  flexDirection: 'column',
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
                   marginBottom: 12
                 }}
               >
@@ -156,6 +222,39 @@ const Chatbot = () => {
                     />
                   )}
                 </Space>
+                
+                {msg.role === 'bot' && (
+                  <div style={{ marginTop: 4, marginLeft: 32 }}>
+                    <Space size="small">
+                      <Tooltip title="Helpful">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={msg.feedback === 'positive' ? <LikeFilled /> : <LikeOutlined />}
+                          onClick={() => !msg.feedback && handleFeedback(idx, 'positive')}
+                          disabled={msg.feedback !== null}
+                          style={{ 
+                            color: msg.feedback === 'positive' ? '#52c41a' : undefined,
+                            fontSize: '12px'
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip title="Not helpful">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={msg.feedback === 'negative' ? <DislikeFilled /> : <DislikeOutlined />}
+                          onClick={() => !msg.feedback && handleFeedback(idx, 'negative')}
+                          disabled={msg.feedback !== null}
+                          style={{ 
+                            color: msg.feedback === 'negative' ? '#ff4d4f' : undefined,
+                            fontSize: '12px'
+                          }}
+                        />
+                      </Tooltip>
+                    </Space>
+                  </div>
+                )}
               </div>
             ))}
             
@@ -206,6 +305,29 @@ const Chatbot = () => {
           </div>
         </Card>
       )}
+
+      <Modal
+        title="Help us improve"
+        open={feedbackModal.visible}
+        onOk={submitNegativeFeedback}
+        onCancel={() => {
+          setFeedbackModal({ visible: false, messageIdx: null, rating: null });
+          setFeedbackComment('');
+        }}
+        okText="Submit"
+        cancelText="Cancel"
+      >
+        <div style={{ marginTop: 16 }}>
+          <Text>What went wrong? Your feedback helps us improve.</Text>
+          <TextArea
+            rows={4}
+            value={feedbackComment}
+            onChange={(e) => setFeedbackComment(e.target.value)}
+            placeholder="Tell us what went wrong or what you expected..."
+            style={{ marginTop: 8 }}
+          />
+        </div>
+      </Modal>
     </>
   );
 };

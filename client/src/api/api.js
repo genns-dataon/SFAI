@@ -57,4 +57,16 @@ export const chatAPI = {
   sendMessage: (message) => api.post('/chat', { message }),
 };
 
+export const feedbackAPI = {
+  create: (data) => api.post('/feedback', data),
+  getAll: () => api.get('/feedback'),
+};
+
+export const settingsAPI = {
+  getAll: () => api.get('/settings'),
+  get: (key) => api.get(`/settings/${key}`),
+  upsert: (data) => api.post('/settings', data),
+  delete: (key) => api.delete(`/settings/${key}`),
+};
+
 export default api;

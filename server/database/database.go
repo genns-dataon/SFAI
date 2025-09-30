@@ -40,6 +40,8 @@ func Migrate() {
                 &models.SalaryComponent{},
                 &models.Document{},
                 &models.PayrollExport{},
+                &models.ChatFeedback{},
+                &models.ChatbotSettings{},
         )
         if err != nil {
                 log.Fatal("Failed to migrate database:", err)
