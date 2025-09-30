@@ -1,0 +1,30 @@
+# Go
+server/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Node
+client/node_modules/
+client/dist/
+client/.env.local
+
+# Environment
+.env
+server/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
