@@ -122,8 +122,8 @@ const Layout = () => {
             src="/logo.png" 
             alt="SunFish Logo" 
             style={{
-              width: 40,
-              height: 40,
+              width: 80,
+              height: 80,
               objectFit: 'contain',
               flexShrink: 0
             }}
