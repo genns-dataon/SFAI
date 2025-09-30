@@ -138,7 +138,7 @@ func Login(c *gin.Context) {
 }
 
 func GetMe(c *gin.Context) {
-        userID, exists := c.Get("user_id")
+        userID, exists := c.Get("userID")
         if !exists {
                 c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
                 return
