@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, message, Popconfirm, Space, Typography, Alert } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons';
-import { settingsAPI } from '../api/api';
+import { Card, Table, Button, Modal, Form, Input, message, Popconfirm, Space, Typography, Alert, Tag } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, CommentOutlined, LikeOutlined, DislikeOutlined } from '@ant-design/icons';
+import { settingsAPI, feedbackAPI } from '../api/api';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
 const Settings = () => {
   const [settings, setSettings] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
     fetchSettings();
+    fetchFeedback();
   }, []);
 
   const fetchSettings = async () => {
@@ -26,6 +29,18 @@ const Settings = () => {
       message.error('Failed to fetch settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFeedback = async () => {
+    setFeedbackLoading(true);
+    try {
+      const response = await feedbackAPI.getAll();
+      setFeedback(response.data || []);
+    } catch (error) {
+      message.error('Failed to fetch feedback');
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -121,6 +136,79 @@ const Settings = () => {
     },
   ];
 
+  const feedbackColumns = [
+    {
+      title: 'Rating',
+      dataIndex: 'rating',
+      key: 'rating',
+      width: '10%',
+      render: (rating) => (
+        rating === 'positive' ? 
+          <Tag icon={<LikeOutlined />} color="success">Positive</Tag> :
+          <Tag icon={<DislikeOutlined />} color="error">Negative</Tag>
+      ),
+    },
+    {
+      title: 'Question',
+      dataIndex: 'question',
+      key: 'question',
+      width: '25%',
+      render: (text) => (
+        <Text style={{ 
+          display: 'block',
+          whiteSpace: 'pre-wrap',
+          maxHeight: '80px',
+          overflow: 'auto'
+        }}>
+          {text}
+        </Text>
+      ),
+    },
+    {
+      title: 'Response',
+      dataIndex: 'response',
+      key: 'response',
+      width: '30%',
+      render: (text) => (
+        <Text style={{ 
+          display: 'block',
+          whiteSpace: 'pre-wrap',
+          maxHeight: '80px',
+          overflow: 'auto'
+        }}>
+          {text}
+        </Text>
+      ),
+    },
+    {
+      title: 'Comment',
+      dataIndex: 'comment',
+      key: 'comment',
+      width: '25%',
+      render: (text) => (
+        text ? (
+          <Text style={{ 
+            display: 'block',
+            whiteSpace: 'pre-wrap',
+            maxHeight: '80px',
+            overflow: 'auto'
+          }}>
+            {text}
+          </Text>
+        ) : (
+          <Text type="secondary" italic>No comment</Text>
+        )
+      ),
+    },
+    {
+      title: 'Date',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: '10%',
+      render: (date) => new Date(date).toLocaleDateString(),
+    },
+  ];
+
   return (
     <div className="p-6">
       <Card
@@ -157,6 +245,32 @@ const Settings = () => {
           dataSource={settings}
           loading={loading}
           rowKey="key"
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
+
+      <Card
+        title={
+          <Space>
+            <CommentOutlined style={{ fontSize: '20px' }} />
+            <span>Chatbot Feedback</span>
+          </Space>
+        }
+        style={{ marginTop: 24 }}
+      >
+        <Alert
+          message="User Feedback History"
+          description="View all feedback collected from chatbot interactions. Positive feedback (👍) and negative feedback (👎) with optional comments help improve the chatbot's responses."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+
+        <Table
+          columns={feedbackColumns}
+          dataSource={feedback}
+          loading={feedbackLoading}
+          rowKey="id"
           pagination={{ pageSize: 10 }}
         />
       </Card>
