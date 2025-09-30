@@ -130,8 +130,7 @@ const Layout = () => {
           />
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
-              <Title level={4} style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>HCM System</Title>
-              <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Human Capital Management</Text>
+              <Title level={4} style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>AI HCM</Title>
             </div>
           )}
         </div>
