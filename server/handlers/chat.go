@@ -119,13 +119,35 @@ func Chat(c *gin.Context) {
                                 ))
                         }
                 } else {
-                        // General employee info request
-                        response.WriteString(fmt.Sprintf("I can help with employee information! We have %d employees across %d departments.\n\n", 
-                                len(employees), len(getDepartments(employees))))
-                        response.WriteString("You can ask me to:\n")
-                        response.WriteString("• List all employees\n")
-                        response.WriteString("• Show employees in a specific department (Engineering, Sales, HR)\n")
-                        response.WriteString("• Get employee contact information\n")
+                        // Try to find a specific employee by name
+                        foundEmployee := false
+                        for _, emp := range employees {
+                                // Check if employee name is mentioned in the query
+                                if strings.Contains(messageLower, strings.ToLower(emp.Name)) {
+                                        deptName := "N/A"
+                                        if emp.Department != nil {
+                                                deptName = emp.Department.Name
+                                        }
+                                        response.WriteString(fmt.Sprintf("Here's the information for %s:\n\n", emp.Name))
+                                        response.WriteString(fmt.Sprintf("• Name: %s\n", emp.Name))
+                                        response.WriteString(fmt.Sprintf("• Job Title: %s\n", emp.JobTitle))
+                                        response.WriteString(fmt.Sprintf("• Department: %s\n", deptName))
+                                        response.WriteString(fmt.Sprintf("• Email: %s\n", emp.Email))
+                                        response.WriteString(fmt.Sprintf("• Hire Date: %s\n", emp.HireDate.Format("Jan 2, 2006")))
+                                        foundEmployee = true
+                                        break
+                                }
+                        }
+                        
+                        if !foundEmployee {
+                                // General employee info request
+                                response.WriteString(fmt.Sprintf("I can help with employee information! We have %d employees across %d departments.\n\n", 
+                                        len(employees), len(getDepartments(employees))))
+                                response.WriteString("You can ask me to:\n")
+                                response.WriteString("• List all employees\n")
+                                response.WriteString("• Show employees in a specific department (Engineering, Sales, HR)\n")
+                                response.WriteString("• Get employee contact information by name\n")
+                        }
                 }
 
                 c.JSON(http.StatusOK, gin.H{
