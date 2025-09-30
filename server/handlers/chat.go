@@ -184,12 +184,80 @@ func Chat(c *gin.Context) {
                                         response.WriteString("No attendance records found in the system.\n")
                                 }
                         }
+                } else if strings.Contains(messageLower, "at work") || strings.Contains(messageLower, "working today") || strings.Contains(messageLower, "clocked in") {
+                        // Show who is at work today
+                        var attendances []models.Attendance
+                        today := strings.Split(fmt.Sprintf("%v", database.DB.NowFunc()), " ")[0]
+                        database.DB.Preload("Employee").Where("DATE(date) = ?", today).Find(&attendances)
+
+                        if len(attendances) > 0 {
+                                response.WriteString(fmt.Sprintf("Employees at work today (%s):\n\n", today))
+                                for _, att := range attendances {
+                                        if att.Employee != nil {
+                                                status := "Currently at work"
+                                                if att.ClockOut != nil {
+                                                        status = fmt.Sprintf("Clocked out at %s", att.ClockOut.Format("3:04 PM"))
+                                                }
+                                                response.WriteString(fmt.Sprintf(
+                                                        "• %s (%s) - Clocked in: %s | %s\n",
+                                                        att.Employee.Name,
+                                                        att.Employee.JobTitle,
+                                                        att.ClockIn.Format("3:04 PM"),
+                                                        status,
+                                                ))
+                                        }
+                                }
+                        } else {
+                                response.WriteString("No employees have clocked in today yet.\n")
+                        }
+                } else if strings.Contains(messageLower, "how many") && (strings.Contains(messageLower, "developer") || strings.Contains(messageLower, "engineer") || strings.Contains(messageLower, "manager") || strings.Contains(messageLower, "director")) {
+                        // Count employees by job title/role
+                        roleKeywords := map[string]string{
+                                "developer": "developer",
+                                "engineer": "engineer",
+                                "manager": "manager",
+                                "director": "director",
+                                "executive": "executive",
+                                "coordinator": "coordinator",
+                                "representative": "representative",
+                        }
+                        
+                        for keyword, role := range roleKeywords {
+                                if strings.Contains(messageLower, keyword) {
+                                        count := 0
+                                        var matchedEmployees []string
+                                        for _, emp := range employees {
+                                                if strings.Contains(strings.ToLower(emp.JobTitle), role) {
+                                                        count++
+                                                        matchedEmployees = append(matchedEmployees, fmt.Sprintf("%s (%s)", emp.Name, emp.JobTitle))
+                                                }
+                                        }
+                                        if count > 0 {
+                                                response.WriteString(fmt.Sprintf("We have %d %s(s):\n\n", count, role))
+                                                for _, emp := range matchedEmployees {
+                                                        response.WriteString(fmt.Sprintf("• %s\n", emp))
+                                                }
+                                        } else {
+                                                response.WriteString(fmt.Sprintf("We don't have any employees with '%s' in their job title.\n", role))
+                                        }
+                                        break
+                                }
+                        }
                 } else {
-                        // Try to find a specific employee by name
+                        // Try to find a specific employee by name (including partial name/first name)
                         foundEmployee := false
                         for _, emp := range employees {
-                                // Check if employee name is mentioned in the query
-                                if strings.Contains(messageLower, strings.ToLower(emp.Name)) {
+                                nameParts := strings.Fields(strings.ToLower(emp.Name))
+                                // Check full name or any part of the name
+                                nameMatch := strings.Contains(messageLower, strings.ToLower(emp.Name))
+                                for _, part := range nameParts {
+                                        if strings.Contains(messageLower, part) && len(part) > 2 {
+                                                nameMatch = true
+                                                break
+                                        }
+                                }
+                                
+                                if nameMatch {
                                         deptName := "N/A"
                                         if emp.Department != nil {
                                                 deptName = emp.Department.Name
@@ -212,8 +280,10 @@ func Chat(c *gin.Context) {
                                 response.WriteString("You can ask me to:\n")
                                 response.WriteString("• List all employees\n")
                                 response.WriteString("• Show employees in a specific department (Engineering, Sales, HR)\n")
-                                response.WriteString("• Get employee contact information by name\n")
+                                response.WriteString("• Get employee contact information by name (e.g., 'What is Emma's email?')\n")
                                 response.WriteString("• View attendance records for any employee\n")
+                                response.WriteString("• Check who is at work today\n")
+                                response.WriteString("• Count employees by role (e.g., 'How many developers do we have?')\n")
                         }
                 }
 
