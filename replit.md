@@ -90,7 +90,28 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
    - **Intelligent Query Routing**: 
      - Employee-related queries (list, department-specific, contact info) → Local database (no external API)
      - General HR policy questions → OpenAI with aggregated statistics only (no PII)
-   - **Supported Employee Queries**: List all employees, department-specific queries (Engineering, Sales, HR), employee contact information
+   - **Supported Employee Queries**: 
+     - List all employees with basic information
+     - Department-specific queries (Engineering, Sales, HR)
+     - Employee contact information (email, phone)
+     - New comprehensive employee fields:
+       * Salary & compensation information (base salary, currency, pay frequency)
+       * Skills & certifications
+       * Performance ratings
+       - Employment status statistics
+       * Work location & arrangements (remote, hybrid, onsite)
+       * Employment types (full-time, part-time, contract)
+       * Benefits eligibility
+   - **Clock-In Functionality**:
+     - Clock in via chat with keywords like "clock in", "check in", "mark attendance"
+     - Authenticates user and links to employee record via user_id
+     - Prevents duplicate clock-ins for the same day
+     - Creates attendance record with timestamp
+     - Returns confirmation with clock-in time
+   - **Leave Request Guidance**:
+     - Provides step-by-step instructions for submitting leave requests
+     - Keywords: "request leave", "apply for leave", "take leave"
+     - Guides users to the Leave page with form details
 
 **API Client Design:**
 - Centralized axios instance with base configuration
