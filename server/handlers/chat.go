@@ -1,6 +1,8 @@
 package handlers
 
 import (
+        "context"
+        "encoding/json"
         "fmt"
         "net/http"
         "os"
@@ -34,6 +36,181 @@ func getDepartments(employees []models.Employee) map[string]bool {
                 }
         }
         return depts
+}
+
+// handleEmployeeQueryWithAI uses OpenAI function calling to intelligently answer employee queries
+func handleEmployeeQueryWithAI(userMessage string) (string, error) {
+        client := getOpenAIClient()
+        ctx := context.Background()
+        
+        // Define available functions for the AI to call
+        tools := []openai.ChatCompletionToolUnionParam{
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "list_all_employees",
+                        Description: openai.String("Get a list of all employees with their basic information including ID, name, email, job title, and department"),
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employees_by_department",
+                        Description: openai.String("Get employees from a specific department"),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "department": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "The department name (e.g., Engineering, Sales, HR, Human Resources)",
+                                        },
+                                },
+                                "required": []string{"department"},
+                        },
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employee_reporting_structure",
+                        Description: openai.String("Get the reporting structure for an employee - who they report to and who reports to them"),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "employee_name": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "The employee's name (first name, last name, or full name)",
+                                        },
+                                },
+                                "required": []string{"employee_name"},
+                        },
+                }),
+        }
+        
+        // Initial API call
+        params := openai.ChatCompletionNewParams{
+                Messages: []openai.ChatCompletionMessageParamUnion{
+                        openai.SystemMessage("You are an HR assistant that helps answer questions about employees. Use the available functions to retrieve employee data. Never make up information."),
+                        openai.UserMessage(userMessage),
+                },
+                Tools:  tools,
+                Model:  openai.ChatModelGPT4oMini,
+        }
+        
+        response, err := client.Chat.Completions.New(ctx, params)
+        if err != nil {
+                return "", err
+        }
+        
+        // Check if AI wants to call a function
+        toolCalls := response.Choices[0].Message.ToolCalls
+        if len(toolCalls) == 0 {
+                // No function call, return direct response
+                if len(response.Choices) > 0 {
+                        return response.Choices[0].Message.Content, nil
+                }
+                return "", fmt.Errorf("no response from AI")
+        }
+        
+        // Add assistant's message to conversation
+        params.Messages = append(params.Messages, response.Choices[0].Message.ToParam())
+        
+        // Execute each function call
+        for _, toolCall := range toolCalls {
+                functionName := toolCall.Function.Name
+                argumentsJSON := toolCall.Function.Arguments
+                
+                switch functionName {
+                case "list_all_employees":
+                        var employees []models.Employee
+                        if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
+                                return "", fmt.Errorf("database error: %v", err)
+                        }
+                        
+                        result := "📋 Employee List:\n\n"
+                        for _, emp := range employees {
+                                deptName := "N/A"
+                                if emp.Department != nil {
+                                        deptName = emp.Department.Name
+                                }
+                                result += fmt.Sprintf("• ID: %d | %s (%s) - %s | Email: %s\n", 
+                                        emp.ID, emp.Name, emp.JobTitle, deptName, emp.Email)
+                        }
+                        // Return result directly to user without sending PII back to OpenAI
+                        return result, nil
+                        
+                case "get_employees_by_department":
+                        var args struct {
+                                Department string `json:"department"`
+                        }
+                        if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
+                                return "", fmt.Errorf("invalid arguments: %v", err)
+                        }
+                        
+                        var employees []models.Employee
+                        if err := database.DB.Preload("Department").Joins("JOIN departments ON departments.id = employees.department_id").
+                                Where("LOWER(departments.name) LIKE ?", "%"+strings.ToLower(args.Department)+"%").
+                                Find(&employees).Error; err != nil {
+                                return "", fmt.Errorf("database error: %v", err)
+                        }
+                        
+                        if len(employees) == 0 {
+                                return fmt.Sprintf("No employees found in %s department", args.Department), nil
+                        }
+                        
+                        result := fmt.Sprintf("👥 Employees in %s:\n\n", args.Department)
+                        for _, emp := range employees {
+                                result += fmt.Sprintf("• ID: %d | %s (%s) | Email: %s\n", 
+                                        emp.ID, emp.Name, emp.JobTitle, emp.Email)
+                        }
+                        // Return result directly to user without sending PII back to OpenAI
+                        return result, nil
+                        
+                case "get_employee_reporting_structure":
+                        var args struct {
+                                EmployeeName string `json:"employee_name"`
+                        }
+                        if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
+                                return "", fmt.Errorf("invalid arguments: %v", err)
+                        }
+                        
+                        // Find the employee
+                        var employee models.Employee
+                        if err := database.DB.Preload("Manager").Preload("Department").
+                                Where("LOWER(name) LIKE ?", "%"+strings.ToLower(args.EmployeeName)+"%").
+                                First(&employee).Error; err != nil {
+                                return fmt.Sprintf("Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), nil
+                        }
+                        
+                        result := fmt.Sprintf("📊 Reporting Structure for %s:\n\n", employee.Name)
+                        result += fmt.Sprintf("• Job Title: %s\n", employee.JobTitle)
+                        if employee.Department != nil {
+                                result += fmt.Sprintf("• Department: %s\n", employee.Department.Name)
+                        }
+                        
+                        if employee.Manager != nil {
+                                result += fmt.Sprintf("• Reports to: %s (%s)\n", employee.Manager.Name, employee.Manager.JobTitle)
+                        } else {
+                                result += "• Reports to: No one (Top level)\n"
+                        }
+                        
+                        // Find direct reports
+                        var directReports []models.Employee
+                        if err := database.DB.Where("manager_id = ?", employee.ID).Find(&directReports).Error; err != nil {
+                                return "", fmt.Errorf("database error: %v", err)
+                        }
+                        
+                        if len(directReports) > 0 {
+                                result += fmt.Sprintf("• Direct reports (%d):\n", len(directReports))
+                                for _, report := range directReports {
+                                        result += fmt.Sprintf("  - %s (%s)\n", report.Name, report.JobTitle)
+                                }
+                        } else {
+                                result += "• Direct reports: None\n"
+                        }
+                        
+                        // Return result directly to user without sending PII back to OpenAI
+                        return result, nil
+                        
+                default:
+                        return "", fmt.Errorf("unknown function: %s", functionName)
+                }
+        }
+        
+        // No function call matched - this shouldn't happen but return empty to fall back to keyword matching
+        return "", nil
 }
 
 func Chat(c *gin.Context) {
@@ -438,7 +615,17 @@ func Chat(c *gin.Context) {
                 return
         }
 
-        // Check if this is an employee-related query (handle locally to protect PII)
+        // Try using AI function calling for employee queries first
+        // This provides much better understanding than keyword matching
+        aiResponse, err := handleEmployeeQueryWithAI(input.Message)
+        if err == nil && aiResponse != "" {
+                c.JSON(http.StatusOK, gin.H{
+                        "response": aiResponse,
+                })
+                return
+        }
+        
+        // Fallback to keyword-based detection if AI didn't handle it
         employeeKeywords := []string{
                 "employee", "employees", "staff", "worker", "workers",
                 "who is", "who works", "who's in", "people in", "who hasn't", "who didn't",

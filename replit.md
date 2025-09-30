@@ -90,21 +90,19 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
 6. **AI Chat Assistant** (`/api/chat`)
    - POST send message and receive AI-powered response (protected, powered by OpenAI GPT-4o-mini)
    - **Security-First Design**: Employee data queries handled locally without sending PII to OpenAI
-   - **Intelligent Query Routing**: 
-     - Employee-related queries (list, department-specific, contact info) → Local database (no external API)
-     - General HR policy questions → OpenAI with aggregated statistics only (no PII)
+   - **OpenAI Function Calling**: Uses advanced function calling API for intelligent query understanding
+     - AI intelligently determines which function to call based on natural language queries
+     - Functions execute locally on the server, never sending employee PII to OpenAI
+     - Replaces brittle keyword matching with flexible AI-powered intent detection
+   - **Available Functions**:
+     - `list_all_employees`: Returns all employees with ID, name, email, job title, and department
+     - `get_employees_by_department`: Filters employees by department name
+     - `get_employee_reporting_structure`: Shows reporting hierarchy (manager and direct reports)
    - **Supported Employee Queries**: 
-     - List all employees with basic information
-     - Department-specific queries (Engineering, Sales, HR)
-     - Employee contact information (email, phone)
-     - New comprehensive employee fields:
-       * Salary & compensation information (base salary, currency, pay frequency)
-       * Skills & certifications
-       * Performance ratings
-       - Employment status statistics
-       * Work location & arrangements (remote, hybrid, onsite)
-       * Employment types (full-time, part-time, contract)
-       * Benefits eligibility
+     - "List out employees and their IDs" - AI understands variations in phrasing
+     - "Show me the engineering team" - Flexible department queries
+     - "Who does Alice report to?" - Natural language reporting structure queries
+     - Works with variations like "give me", "show", "list", "tell me about" without keyword matching
    - **Attendance Recording via Chat**:
      - **Clock In**: Keywords like "clock in", "check in", "start work", "mark attendance"
      - **Clock Out**: Keywords like "clock out", "end work", "leaving", "done for the day"
