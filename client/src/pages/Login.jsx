@@ -35,6 +35,17 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <img 
+              src="/logo.png" 
+              alt="SunFish Logo" 
+              style={{
+                width: 80,
+                height: 80,
+                objectFit: 'contain'
+              }}
+            />
+          </div>
           <Title level={2} className="mb-2">Welcome Back</Title>
           <Paragraph className="text-gray-600">
             Sign in to access the HCM system

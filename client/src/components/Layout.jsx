@@ -47,6 +47,13 @@ const Layout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Auto-close menu on mobile when navigating
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [location.pathname, isMobile]);
+
   const menuItems = [
     {
       key: '/',
@@ -111,18 +118,16 @@ const Layout = () => {
           gap: 12,
           minHeight: 88
         }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
-          }}>
-            <BankOutlined style={{ fontSize: 20, color: '#fff' }} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="SunFish Logo" 
+            style={{
+              width: 40,
+              height: 40,
+              objectFit: 'contain',
+              flexShrink: 0
+            }}
+          />
           {!collapsed && (
             <div style={{ overflow: 'hidden' }}>
               <Title level={4} style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>HCM System</Title>
