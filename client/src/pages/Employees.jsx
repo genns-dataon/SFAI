@@ -174,9 +174,15 @@ const Employees = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
           <div>
             <Title level={2} style={{ margin: 0 }}>Employees</Title>
             <Text type="secondary">Manage your workforce and team members</Text>
@@ -206,6 +212,7 @@ const Employees = () => {
               dataSource={filteredEmployees}
               loading={loading}
               rowKey="id"
+              scroll={{ x: 1200 }}
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,
@@ -230,7 +237,8 @@ const Employees = () => {
           form.resetFields();
         }}
         footer={null}
-        width={800}
+        width="90%"
+        style={{ maxWidth: 800 }}
       >
         <Form
           form={form}
@@ -515,12 +523,13 @@ const Employees = () => {
             Edit Employee
           </Button>,
         ]}
-        width={900}
+        width="90%"
+        style={{ maxWidth: 900 }}
       >
         {selectedEmployee && (
           <div style={{ marginTop: 24 }}>
             <Title level={4}>Basic Information</Title>
-            <Descriptions bordered column={2}>
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
               <Descriptions.Item label="Name">{selectedEmployee.name}</Descriptions.Item>
               <Descriptions.Item label="Email">{selectedEmployee.email}</Descriptions.Item>
               <Descriptions.Item label="Job Title">{selectedEmployee.job_title}</Descriptions.Item>
@@ -533,7 +542,7 @@ const Employees = () => {
 
             <Divider />
             <Title level={4}>Personal & Identification</Title>
-            <Descriptions bordered column={2}>
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
               <Descriptions.Item label="Employee Number">{selectedEmployee.employee_number || 'N/A'}</Descriptions.Item>
               <Descriptions.Item label="Date of Birth">
                 {selectedEmployee.date_of_birth ? new Date(selectedEmployee.date_of_birth).toLocaleDateString() : 'N/A'}
@@ -545,7 +554,7 @@ const Employees = () => {
 
             <Divider />
             <Title level={4}>Employment & Job Details</Title>
-            <Descriptions bordered column={2}>
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
               <Descriptions.Item label="Employment Type">{selectedEmployee.employment_type || 'N/A'}</Descriptions.Item>
               <Descriptions.Item label="Employment Status">
                 <Tag color={selectedEmployee.employment_status === 'active' ? 'green' : 'orange'}>
@@ -559,7 +568,7 @@ const Employees = () => {
 
             <Divider />
             <Title level={4}>Compensation & Benefits</Title>
-            <Descriptions bordered column={2}>
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
               <Descriptions.Item label="Base Salary">
                 {selectedEmployee.base_salary ? `${selectedEmployee.currency || 'USD'} ${selectedEmployee.base_salary.toLocaleString()}` : 'N/A'}
               </Descriptions.Item>
@@ -571,7 +580,7 @@ const Employees = () => {
 
             <Divider />
             <Title level={4}>Performance & Development</Title>
-            <Descriptions bordered column={2}>
+            <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
               <Descriptions.Item label="Probation End Date">
                 {selectedEmployee.probation_end_date ? new Date(selectedEmployee.probation_end_date).toLocaleDateString() : 'N/A'}
               </Descriptions.Item>
