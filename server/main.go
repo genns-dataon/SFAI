@@ -45,6 +45,7 @@ func main() {
                 api.PUT("/employees/:id", handlers.UpdateEmployee)
 
                 api.POST("/attendance/clockin", handlers.ClockIn)
+                api.POST("/attendance/clockout", handlers.ClockOut)
                 api.GET("/attendance", handlers.GetAttendance)
 
                 api.POST("/leave", handlers.CreateLeaveRequest)

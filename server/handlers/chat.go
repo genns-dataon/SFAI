@@ -50,7 +50,7 @@ func Chat(c *gin.Context) {
 
         // Check for attendance clock-in requests
         clockInKeywords := []string{
-                "clock in", "clock-in", "check in", "report attendance", 
+                "clock in", "clock-in", "check in", "start work", "start my shift",
                 "mark attendance", "i'm here", "im here", "arrived", "present",
         }
         for _, keyword := range clockInKeywords {
@@ -75,9 +75,15 @@ func Chat(c *gin.Context) {
                         var existingAttendance models.Attendance
                         err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE", employee.ID).First(&existingAttendance).Error
                         if err == nil {
+                                clockOutStatus := ""
+                                if existingAttendance.ClockOut == nil {
+                                        clockOutStatus = " (not yet clocked out)"
+                                } else {
+                                        clockOutStatus = fmt.Sprintf(" (clocked out at %s)", existingAttendance.ClockOut.Format("3:04 PM"))
+                                }
                                 c.JSON(http.StatusOK, gin.H{
-                                        "response": fmt.Sprintf("✅ You already clocked in today at %s. Have a great day!", 
-                                                existingAttendance.ClockIn.Format("3:04 PM")),
+                                        "response": fmt.Sprintf("✅ You already clocked in today at %s%s.", 
+                                                existingAttendance.ClockIn.Format("3:04 PM"), clockOutStatus),
                                 })
                                 return
                         }
@@ -102,18 +108,289 @@ func Chat(c *gin.Context) {
                 }
         }
 
+        // Check for attendance clock-out requests
+        clockOutKeywords := []string{
+                "clock out", "clock-out", "check out", "end work", "end my shift",
+                "leaving", "done for the day", "finish work", "log out",
+        }
+        for _, keyword := range clockOutKeywords {
+                if strings.Contains(messageLower, keyword) {
+                        // Get current user ID from context
+                        userID, exists := c.Get("userID")
+                        if !exists {
+                                c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+                                return
+                        }
+
+                        // Find employee associated with this user
+                        var employee models.Employee
+                        if err := database.DB.Where("user_id = ?", userID).First(&employee).Error; err != nil {
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": "❌ I couldn't find your employee record. Please contact HR.",
+                                })
+                                return
+                        }
+
+                        // Find today's attendance record without clock out
+                        var attendance models.Attendance
+                        err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE AND clock_out IS NULL", employee.ID).First(&attendance).Error
+                        if err != nil {
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": "❌ You don't have an active clock-in for today. Please clock in first!",
+                                })
+                                return
+                        }
+
+                        // Update with clock out time
+                        now := time.Now()
+                        attendance.ClockOut = &now
+
+                        if err := database.DB.Save(&attendance).Error; err != nil {
+                                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update attendance"})
+                                return
+                        }
+
+                        duration := now.Sub(attendance.ClockIn)
+                        hours := int(duration.Hours())
+                        minutes := int(duration.Minutes()) % 60
+
+                        c.JSON(http.StatusOK, gin.H{
+                                "response": fmt.Sprintf("✅ Successfully clocked out!\n\n👋 See you later, %s!\n⏰ Clock-out time: %s\n📊 Total time: %dh %dm\n\nHave a great evening!", 
+                                        employee.Name, now.Format("3:04 PM"), hours, minutes),
+                        })
+                        return
+                }
+        }
+
+        // Check for attendance recording requests (for managers recording for others)
+        recordAttendanceKeywords := []string{
+                "record attendance", "mark attendance for", "clock in for", "clock out for",
+                "record start time", "record end time", "attendance for",
+        }
+        isRecordingForOther := false
+        for _, keyword := range recordAttendanceKeywords {
+                if strings.Contains(messageLower, keyword) {
+                        isRecordingForOther = true
+                        break
+                }
+        }
+
+        if isRecordingForOther {
+                // Load all employees to help match names
+                var employees []models.Employee
+                database.DB.Preload("Department").Find(&employees)
+
+                // Try to extract employee name from the message
+                var targetEmployee *models.Employee
+                for _, emp := range employees {
+                        nameLower := strings.ToLower(emp.Name)
+                        if strings.Contains(messageLower, nameLower) {
+                                targetEmployee = &emp
+                                break
+                        }
+                }
+
+                if targetEmployee == nil {
+                        // Ask for employee name
+                        var response strings.Builder
+                        response.WriteString("📝 I can help you record attendance!\n\n")
+                        response.WriteString("Please tell me whose attendance you want to record. Here are the employees:\n\n")
+                        for _, emp := range employees {
+                                deptName := "N/A"
+                                if emp.Department != nil {
+                                        deptName = emp.Department.Name
+                                }
+                                response.WriteString(fmt.Sprintf("• %s (%s) - %s\n", emp.Name, emp.JobTitle, deptName))
+                        }
+                        response.WriteString("\nExample: \"Record start time for John Smith\"")
+                        c.JSON(http.StatusOK, gin.H{"response": response.String()})
+                        return
+                }
+
+                // Determine if it's clock in or clock out
+                isClockOut := strings.Contains(messageLower, "end") || strings.Contains(messageLower, "out") || 
+                        strings.Contains(messageLower, "finish") || strings.Contains(messageLower, "leaving")
+
+                if isClockOut {
+                        // Record clock out
+                        var attendance models.Attendance
+                        err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE AND clock_out IS NULL", targetEmployee.ID).First(&attendance).Error
+                        if err != nil {
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": fmt.Sprintf("❌ %s doesn't have an active clock-in for today.", targetEmployee.Name),
+                                })
+                                return
+                        }
+
+                        now := time.Now()
+                        attendance.ClockOut = &now
+
+                        if err := database.DB.Save(&attendance).Error; err != nil {
+                                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update attendance"})
+                                return
+                        }
+
+                        duration := now.Sub(attendance.ClockIn)
+                        hours := int(duration.Hours())
+                        minutes := int(duration.Minutes()) % 60
+
+                        c.JSON(http.StatusOK, gin.H{
+                                "response": fmt.Sprintf("✅ Clock-out recorded for %s!\n\n⏰ Clock-out time: %s\n📊 Total time: %dh %dm", 
+                                        targetEmployee.Name, now.Format("3:04 PM"), hours, minutes),
+                        })
+                } else {
+                        // Record clock in
+                        var existingAttendance models.Attendance
+                        err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE", targetEmployee.ID).First(&existingAttendance).Error
+                        if err == nil {
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": fmt.Sprintf("✅ %s already clocked in today at %s.", 
+                                                targetEmployee.Name, existingAttendance.ClockIn.Format("3:04 PM")),
+                                })
+                                return
+                        }
+
+                        attendance := models.Attendance{
+                                EmployeeID: targetEmployee.ID,
+                                Date:       time.Now(),
+                                ClockIn:    time.Now(),
+                        }
+
+                        if err := database.DB.Create(&attendance).Error; err != nil {
+                                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record attendance"})
+                                return
+                        }
+
+                        c.JSON(http.StatusOK, gin.H{
+                                "response": fmt.Sprintf("✅ Attendance recorded for %s!\n\n⏰ Clock-in time: %s", 
+                                        targetEmployee.Name, attendance.ClockIn.Format("3:04 PM")),
+                        })
+                }
+                return
+        }
+
         // Check for leave request submissions
         leaveRequestKeywords := []string{
                 "request leave", "apply for leave", "take leave", "need leave",
                 "submit leave", "leave request", "time off", "vacation request",
+                "i want leave", "i need time off", "book leave",
         }
+        isLeaveRequest := false
         for _, keyword := range leaveRequestKeywords {
                 if strings.Contains(messageLower, keyword) {
+                        isLeaveRequest = true
+                        break
+                }
+        }
+
+        if isLeaveRequest {
+                // Get current user ID from context
+                userID, exists := c.Get("userID")
+                if !exists {
+                        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+                        return
+                }
+
+                // Find employee associated with this user
+                var employee models.Employee
+                if err := database.DB.Where("user_id = ?", userID).First(&employee).Error; err != nil {
                         c.JSON(http.StatusOK, gin.H{
-                                "response": "📝 To submit a leave request:\n\n1. Go to the 'Leave' page from the sidebar menu\n2. Click the '+ Request Leave' button\n3. Fill in the form:\n   - Leave Type (Vacation, Sick Leave, Personal, etc.)\n   - Start Date and End Date\n   - Reason for leave\n4. Submit the request\n5. Your manager will review and approve/reject it\n\nNote: Make sure to submit leave requests in advance when possible!",
+                                "response": "❌ I couldn't find your employee record. Please contact HR.",
                         })
                         return
                 }
+
+                // Parse dates from the message
+                var startDate, endDate time.Time
+                var leaveType string
+                dateFound := false
+
+                // Check for "tomorrow"
+                if strings.Contains(messageLower, "tomorrow") {
+                        tomorrow := time.Now().AddDate(0, 0, 1)
+                        startDate = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, time.UTC)
+                        endDate = startDate
+                        dateFound = true
+                }
+
+                // Check for "today"
+                if strings.Contains(messageLower, "today") {
+                        today := time.Now()
+                        startDate = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
+                        endDate = startDate
+                        dateFound = true
+                }
+
+                // Check for "next week"
+                if strings.Contains(messageLower, "next week") {
+                        nextWeek := time.Now().AddDate(0, 0, 7)
+                        // Find Monday of next week
+                        daysUntilMonday := (8 - int(nextWeek.Weekday())) % 7
+                        if daysUntilMonday == 0 {
+                                daysUntilMonday = 7
+                        }
+                        monday := nextWeek.AddDate(0, 0, daysUntilMonday)
+                        friday := monday.AddDate(0, 0, 4)
+                        startDate = time.Date(monday.Year(), monday.Month(), monday.Day(), 0, 0, 0, 0, time.UTC)
+                        endDate = time.Date(friday.Year(), friday.Month(), friday.Day(), 0, 0, 0, 0, time.UTC)
+                        dateFound = true
+                }
+
+                // Determine leave type
+                if strings.Contains(messageLower, "sick") {
+                        leaveType = "Sick Leave"
+                } else if strings.Contains(messageLower, "vacation") {
+                        leaveType = "Vacation"
+                } else if strings.Contains(messageLower, "personal") {
+                        leaveType = "Personal"
+                } else if strings.Contains(messageLower, "emergency") {
+                        leaveType = "Emergency"
+                } else {
+                        leaveType = "Vacation" // Default
+                }
+
+                // If we found dates, create the leave request
+                if dateFound {
+                        leaveRequest := models.LeaveRequest{
+                                EmployeeID: employee.ID,
+                                LeaveType:  leaveType,
+                                StartDate:  startDate,
+                                EndDate:    endDate,
+                                Status:     "pending",
+                        }
+
+                        if err := database.DB.Create(&leaveRequest).Error; err != nil {
+                                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create leave request"})
+                                return
+                        }
+
+                        days := int(endDate.Sub(startDate).Hours()/24) + 1
+
+                        c.JSON(http.StatusOK, gin.H{
+                                "response": fmt.Sprintf("✅ Leave request submitted successfully!\n\n📝 Details:\n"+
+                                        "• Employee: %s\n"+
+                                        "• Leave Type: %s\n"+
+                                        "• Start Date: %s\n"+
+                                        "• End Date: %s\n"+
+                                        "• Duration: %d day(s)\n"+
+                                        "• Status: Pending\n\n"+
+                                        "Your manager will review and approve/reject the request.",
+                                        employee.Name, leaveType, startDate.Format("Jan 02, 2006"),
+                                        endDate.Format("Jan 02, 2006"), days),
+                        })
+                        return
+                }
+
+                // Ask for more information
+                c.JSON(http.StatusOK, gin.H{
+                        "response": "📝 I can help you submit a leave request!\n\n" +
+                                "Please provide the following information:\n" +
+                                "• When do you want to take leave? (e.g., 'tomorrow', 'today', 'next week')\n" +
+                                "• What type of leave? (Vacation, Sick Leave, Personal, Emergency)\n\n" +
+                                "Example: \"I want to request vacation leave for tomorrow\"\n" +
+                                "Example: \"I need sick leave for next week\"",
+                })
+                return
         }
 
         // Check if this is an employee-related query (handle locally to protect PII)
