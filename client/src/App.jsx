@@ -8,13 +8,14 @@ import Leave from './pages/Leave';
 import Salary from './pages/Salary';
 import OrganizationChart from './pages/OrganizationChart';
 import Login from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
           <Route path="org-chart" element={<OrganizationChart />} />

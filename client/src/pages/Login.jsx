@@ -60,6 +60,7 @@ const Login = () => {
             <Input
               prefix={<UserOutlined className="text-gray-400" />}
               placeholder="Username"
+              autoComplete="username"
             />
           </Form.Item>
 
@@ -72,6 +73,7 @@ const Login = () => {
             <Input.Password
               prefix={<LockOutlined className="text-gray-400" />}
               placeholder="Password"
+              autoComplete="current-password"
             />
           </Form.Item>
 
