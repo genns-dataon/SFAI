@@ -118,6 +118,72 @@ func Chat(c *gin.Context) {
                                         emp.Name, emp.JobTitle, deptName, emp.Email, emp.HireDate.Format("Jan 2, 2006"),
                                 ))
                         }
+                } else if strings.Contains(messageLower, "attendance") {
+                        // Handle attendance queries
+                        var attendances []models.Attendance
+                        database.DB.Preload("Employee.Department").Order("date desc").Find(&attendances)
+
+                        // Check if asking for specific employee's attendance
+                        foundAttendance := false
+                        for _, emp := range employees {
+                                if strings.Contains(messageLower, strings.ToLower(emp.Name)) {
+                                        response.WriteString(fmt.Sprintf("Attendance records for %s:\n\n", emp.Name))
+                                        recordCount := 0
+                                        for _, att := range attendances {
+                                                if att.EmployeeID == emp.ID {
+                                                        recordCount++
+                                                        clockOut := "Still clocked in"
+                                                        if att.ClockOut != nil {
+                                                                clockOut = att.ClockOut.Format("3:04 PM")
+                                                        }
+                                                        response.WriteString(fmt.Sprintf(
+                                                                "• %s | Clock In: %s | Clock Out: %s | Location: %s\n",
+                                                                att.Date.Format("Jan 2, 2006"),
+                                                                att.ClockIn.Format("3:04 PM"),
+                                                                clockOut,
+                                                                att.Location,
+                                                        ))
+                                                        if recordCount >= 5 {
+                                                                break
+                                                        }
+                                                }
+                                        }
+                                        if recordCount == 0 {
+                                                response.WriteString("No attendance records found for this employee.\n")
+                                        }
+                                        foundAttendance = true
+                                        break
+                                }
+                        }
+
+                        if !foundAttendance {
+                                // Show all recent attendance
+                                response.WriteString("Recent attendance records:\n\n")
+                                count := 0
+                                for _, att := range attendances {
+                                        if att.Employee != nil {
+                                                clockOut := "Still clocked in"
+                                                if att.ClockOut != nil {
+                                                        clockOut = att.ClockOut.Format("3:04 PM")
+                                                }
+                                                response.WriteString(fmt.Sprintf(
+                                                        "• %s - %s | %s | In: %s | Out: %s\n",
+                                                        att.Date.Format("Jan 2, 2006"),
+                                                        att.Employee.Name,
+                                                        att.Location,
+                                                        att.ClockIn.Format("3:04 PM"),
+                                                        clockOut,
+                                                ))
+                                                count++
+                                                if count >= 10 {
+                                                        break
+                                                }
+                                        }
+                                }
+                                if count == 0 {
+                                        response.WriteString("No attendance records found in the system.\n")
+                                }
+                        }
                 } else {
                         // Try to find a specific employee by name
                         foundEmployee := false
@@ -147,6 +213,7 @@ func Chat(c *gin.Context) {
                                 response.WriteString("• List all employees\n")
                                 response.WriteString("• Show employees in a specific department (Engineering, Sales, HR)\n")
                                 response.WriteString("• Get employee contact information by name\n")
+                                response.WriteString("• View attendance records for any employee\n")
                         }
                 }
 
