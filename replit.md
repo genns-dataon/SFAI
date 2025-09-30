@@ -151,12 +151,38 @@ The system uses PostgreSQL database with GORM to persist:
 
 ## Authentication & Authorization
 
-JWT-based authentication system with the following features:
-- User registration and login endpoints
-- Bcrypt password hashing for secure credential storage
-- JWT tokens for session management
-- Protected API routes requiring valid authentication tokens
-- Token-based middleware protecting all employee, attendance, leave, and salary endpoints
+**Comprehensive JWT-based Authentication System:**
+
+**Backend Security:**
+- **Username-based Login**: Users authenticate with username (not email) and password
+- **Password Hashing**: Bcrypt with DefaultCost (10) for all passwords
+- **JWT Token Management**: 24-hour token expiration with JWT_SECRET validation
+- **User-Employee Linking**: Users table with unique username field; employees link to users via UserID
+- **Protected Routes**: JWT middleware validates tokens on all protected endpoints
+- **Environment Security**: JWT_SECRET required in environment variables; server refuses to start without it
+
+**Frontend Security:**
+- **Login Page**: Professional Ant Design form with username/password fields and autocomplete attributes
+- **Protected Routes**: ProtectedRoute component validates token via /api/me on every access
+- **Token Verification**: Calls backend /api/me to verify token validity (catches expired/forged tokens)
+- **Loading States**: Displays spinner while verifying authentication
+- **Auto-Logout**: 401 responses trigger automatic token cleanup and redirect to login
+- **Centralized API**: Axios interceptors automatically attach JWT token to all requests
+- **Session Management**: Token and user data stored in localStorage, cleared on logout
+
+**User Experience:**
+- **Login Flow**: Username/password → JWT token → redirect to dashboard
+- **Logout Flow**: Clear storage → redirect to login page
+- **User Dropdown**: Shows username in header with logout option
+- **Test Accounts**: 10 seeded accounts (alice, bob, carol, david, emma, frank, grace, henry, iris, jack) with password "password"
+
+**Security Features:**
+- JWT_SECRET validation prevents token generation without proper secret
+- Token validation on every protected route prevents unauthorized access
+- Expired/invalid tokens automatically cleaned up
+- 401 responses trigger immediate logout
+- Username-based authentication (more secure than email-based)
+- Centralized API client prevents hardcoded URLs and CORS issues
 
 ## Environment Configuration
 
