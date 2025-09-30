@@ -71,7 +71,20 @@ func ClockOut(c *gin.Context) {
         }
 
         database.DB.Preload("Employee").First(&attendance, attendance.ID)
-        c.JSON(http.StatusOK, attendance)
+        
+        // Calculate duration
+        duration := now.Sub(attendance.ClockIn)
+        hours := int(duration.Hours())
+        minutes := int(duration.Minutes()) % 60
+        
+        c.JSON(http.StatusOK, gin.H{
+                "attendance": attendance,
+                "duration": gin.H{
+                        "hours":   hours,
+                        "minutes": minutes,
+                        "total_minutes": int(duration.Minutes()),
+                },
+        })
 }
 
 func GetAttendance(c *gin.Context) {

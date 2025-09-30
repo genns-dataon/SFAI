@@ -17,6 +17,7 @@ export const employeeAPI = {
 export const attendanceAPI = {
   getAll: () => api.get('/attendance'),
   clockIn: (data) => api.post('/attendance/clockin', data),
+  clockOut: (data) => api.post('/attendance/clockout', data),
 };
 
 export const leaveAPI = {
