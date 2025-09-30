@@ -63,6 +63,11 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
 
 6. **AI Chat Assistant** (`/api/chat`)
    - POST send message and receive AI-powered response (protected, powered by OpenAI GPT-4o-mini)
+   - **Security-First Design**: Employee data queries handled locally without sending PII to OpenAI
+   - **Intelligent Query Routing**: 
+     - Employee-related queries (list, department-specific, contact info) → Local database (no external API)
+     - General HR policy questions → OpenAI with aggregated statistics only (no PII)
+   - **Supported Employee Queries**: List all employees, department-specific queries (Engineering, Sales, HR), employee contact information
 
 **API Client Design:**
 - Centralized axios instance with base configuration
