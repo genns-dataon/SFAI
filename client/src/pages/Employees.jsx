@@ -61,9 +61,15 @@ const Employees = () => {
     }
   };
 
-  const handleViewDetails = (employee) => {
-    setSelectedEmployee(employee);
-    setShowDetailModal(true);
+  const handleViewDetails = async (employee) => {
+    try {
+      const response = await employeeAPI.getById(employee.id);
+      setSelectedEmployee(response.data);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error('Error fetching employee details:', error);
+      message.error('Failed to load employee details');
+    }
   };
 
   const handleEdit = (employee) => {
