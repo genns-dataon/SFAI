@@ -40,8 +40,8 @@ const Login = () => {
               src="/logo.png" 
               alt="SunFish Logo" 
               style={{
-                width: 80,
-                height: 80,
+                width: 160,
+                height: 160,
                 objectFit: 'contain'
               }}
             />
