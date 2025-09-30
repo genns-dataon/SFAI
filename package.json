@@ -12,6 +12,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.0.2",
     "antd": "^5.27.4",
-    "dayjs": "^1.11.18"
+    "dayjs": "^1.11.18",
+    "react-organizational-chart": "^2.2.1"
   }
 }

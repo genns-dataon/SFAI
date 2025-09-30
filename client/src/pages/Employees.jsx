@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, DatePicker, Space, Tag, Typography, message } from 'antd';
-import { PlusOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
 import { employeeAPI } from '../api/api';
 import dayjs from 'dayjs';
 
@@ -11,6 +11,7 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -35,16 +36,38 @@ const Employees = () => {
       const formattedData = {
         ...values,
         hire_date: values.hire_date.format('YYYY-MM-DD'),
+        manager_id: values.manager_id || null,
       };
-      await employeeAPI.create(formattedData);
-      message.success('Employee added successfully');
+      
+      if (editingEmployee) {
+        await employeeAPI.update(editingEmployee.id, formattedData);
+        message.success('Employee updated successfully');
+      } else {
+        await employeeAPI.create(formattedData);
+        message.success('Employee added successfully');
+      }
+      
       setShowModal(false);
+      setEditingEmployee(null);
       form.resetFields();
       fetchEmployees();
     } catch (error) {
-      console.error('Error creating employee:', error);
-      message.error('Failed to add employee');
+      console.error('Error saving employee:', error);
+      message.error(editingEmployee ? 'Failed to update employee' : 'Failed to add employee');
     }
+  };
+
+  const handleEdit = (employee) => {
+    setEditingEmployee(employee);
+    form.setFieldsValue({
+      name: employee.name,
+      email: employee.email,
+      job_title: employee.job_title,
+      department_id: employee.department_id,
+      manager_id: employee.manager_id,
+      hire_date: dayjs(employee.hire_date),
+    });
+    setShowModal(true);
   };
 
   const filteredEmployees = employees.filter(
@@ -95,10 +118,29 @@ const Employees = () => {
       render: (dept) => <Text strong>{dept ? dept.name : 'N/A'}</Text>,
     },
     {
+      title: 'Manager',
+      dataIndex: 'manager',
+      key: 'manager',
+      render: (manager) => manager ? <Text>{manager.name}</Text> : <Text type="secondary">None</Text>,
+    },
+    {
       title: 'Hire Date',
       dataIndex: 'hire_date',
       key: 'hire_date',
       render: (date) => date ? new Date(date).toLocaleDateString() : 'N/A',
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<EditOutlined />}
+          onClick={() => handleEdit(record)}
+        >
+          Edit
+        </Button>
+      ),
     },
   ];
 
@@ -149,12 +191,13 @@ const Employees = () => {
         title={
           <Space>
             <UserOutlined />
-            <span>Add New Employee</span>
+            <span>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</span>
           </Space>
         }
         open={showModal}
         onCancel={() => {
           setShowModal(false);
+          setEditingEmployee(null);
           form.resetFields();
         }}
         footer={null}
@@ -207,6 +250,21 @@ const Employees = () => {
           </Form.Item>
 
           <Form.Item
+            label="Manager"
+            name="manager_id"
+          >
+            <Select placeholder="Select a manager (optional)" allowClear>
+              {employees
+                .filter(emp => !editingEmployee || emp.id !== editingEmployee.id)
+                .map(emp => (
+                  <Select.Option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.job_title})
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             label="Hire Date"
             name="hire_date"
             rules={[{ required: true, message: 'Please select hire date' }]}
@@ -218,12 +276,13 @@ const Employees = () => {
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={() => {
                 setShowModal(false);
+                setEditingEmployee(null);
                 form.resetFields();
               }}>
                 Cancel
               </Button>
               <Button type="primary" htmlType="submit">
-                Add Employee
+                {editingEmployee ? 'Update Employee' : 'Add Employee'}
               </Button>
             </Space>
           </Form.Item>

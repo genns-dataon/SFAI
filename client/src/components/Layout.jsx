@@ -6,7 +6,8 @@ import {
   ClockCircleOutlined,
   CalendarOutlined,
   DollarOutlined,
-  BankOutlined
+  BankOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons';
 
 const { Sider, Content } = AntLayout;
@@ -25,6 +26,11 @@ const Layout = () => {
       key: '/employees',
       icon: <TeamOutlined />,
       label: <Link to="/employees">Employees</Link>,
+    },
+    {
+      key: '/org-chart',
+      icon: <ApartmentOutlined />,
+      label: <Link to="/org-chart">Organization Chart</Link>,
     },
     {
       key: '/attendance',
