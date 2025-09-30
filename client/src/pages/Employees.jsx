@@ -38,8 +38,8 @@ const Employees = () => {
       const formattedData = {
         ...values,
         hire_date: values.hire_date.format('YYYY-MM-DD'),
-        date_of_birth: values.date_of_birth ? values.date_of_birth.format('YYYY-MM-DD') : null,
-        probation_end_date: values.probation_end_date ? values.probation_end_date.format('YYYY-MM-DD') : null,
+        date_of_birth: values.date_of_birth ? values.date_of_birth.format('YYYY-MM-DD') : '',
+        probation_end_date: values.probation_end_date ? values.probation_end_date.format('YYYY-MM-DD') : '',
         manager_id: values.manager_id || null,
       };
       
