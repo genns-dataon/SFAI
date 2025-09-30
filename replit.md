@@ -50,10 +50,18 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
 2. **Employee Management** (`/api/employees`)
    - GET all employees with manager relationships (protected)
    - GET employee by ID with manager and direct reports (protected)
-   - POST create employee with optional manager assignment (protected)
+   - POST create employee with 26 comprehensive fields (protected)
    - PUT update employee with manager hierarchy validation (protected)
    - **Manager Hierarchy**: Self-referential employee relationships with validation to prevent self-reporting
-   - **Edit Functionality**: Full CRUD operations with secure update handling to prevent ID tampering
+   - **Comprehensive Employee Data**: Supports 20 additional fields beyond basic info:
+     - Personal & Identification (5 fields)
+     - Employment & Job Details (5 fields)
+     - Compensation & Benefits (5 fields)
+     - Performance & Development (5 fields)
+   - **UI Features**:
+     - Clickable employee names open detailed view modal with all information
+     - Tabbed edit form organizing fields into 5 sections for better UX
+     - Detail view displays all fields categorized with visual organization
 
 3. **Attendance Tracking** (`/api/attendance`)
    - GET all attendance records (protected)
@@ -86,7 +94,12 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
 ## Data Storage
 
 The system uses PostgreSQL database with GORM to persist:
-- **Employees**: Full employee records with department relationships
+- **Employees**: Comprehensive employee records with 26 fields including:
+  - Basic Information: name, email, job title, department, manager, hire date
+  - Personal & Identification: employee number, date of birth, national ID, tax ID, marital status
+  - Employment & Job Details: employment type, employment status, job level, work location, work arrangement
+  - Compensation & Benefits: base salary, pay frequency, currency, bank account, benefit eligibility
+  - Performance & Development: probation end date, performance rating, skills, training completed, career notes
 - **Departments**: Organizational units
 - **Attendances**: Clock-in/out records with timestamps
 - **Leave Requests**: Employee leave applications with status tracking
