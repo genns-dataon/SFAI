@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Clock, Plus } from 'lucide-react';
+import { Card, Table, Button, Modal, Form, Select, Input, Typography, Space, Tag, message } from 'antd';
+import { ClockCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { attendanceAPI, employeeAPI } from '../api/api';
+
+const { Title, Text } = Typography;
 
 const Attendance = () => {
   const [attendances, setAttendances] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    employee_id: '',
-    location: '',
-  });
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchData();
@@ -18,6 +18,7 @@ const Attendance = () => {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [attendanceRes, employeesRes] = await Promise.all([
         attendanceAPI.getAll(),
         employeeAPI.getAll(),
@@ -26,152 +27,164 @@ const Attendance = () => {
       setEmployees(employeesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
+      message.error('Failed to fetch data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClockIn = async (e) => {
-    e.preventDefault();
+  const handleClockIn = async (values) => {
     try {
       await attendanceAPI.clockIn({
-        employee_id: Number(formData.employee_id),
-        location: formData.location,
+        employee_id: Number(values.employee_id),
+        location: values.location || '',
       });
+      message.success('Clocked in successfully');
       setShowModal(false);
+      form.resetFields();
       fetchData();
-      setFormData({ employee_id: '', location: '' });
     } catch (error) {
       console.error('Error clocking in:', error);
+      message.error('Failed to clock in');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
+  const columns = [
+    {
+      title: 'Employee',
+      dataIndex: 'employee',
+      key: 'employee',
+      render: (employee, record) => (
+        <Text strong>{employee ? employee.name : `Employee ${record.employee_id}`}</Text>
+      ),
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date) => date ? new Date(date).toLocaleDateString() : 'N/A',
+    },
+    {
+      title: 'Clock In',
+      dataIndex: 'clock_in',
+      key: 'clock_in',
+      render: (time) => time ? (
+        <Tag color="green">{new Date(time).toLocaleTimeString()}</Tag>
+      ) : 'N/A',
+    },
+    {
+      title: 'Clock Out',
+      dataIndex: 'clock_out',
+      key: 'clock_out',
+      render: (time) => time ? (
+        <Tag color="red">{new Date(time).toLocaleTimeString()}</Tag>
+      ) : (
+        <Text type="secondary">-</Text>
+      ),
+    },
+    {
+      title: 'Location',
+      dataIndex: 'location',
+      key: 'location',
+      render: (location) => location || '-',
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-secondary-900">Attendance</h1>
-          <p className="text-secondary-600 mt-1">Track employee clock-in and clock-out times</p>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn btn-success flex items-center gap-2"
-        >
-          <Clock className="w-5 h-5" />
-          Clock In
-        </button>
-      </div>
-
-      <div className="table-container">
-        <table className="table-base">
-          <thead className="table-header">
-            <tr>
-              <th className="table-header-cell">Employee</th>
-              <th className="table-header-cell">Date</th>
-              <th className="table-header-cell">Clock In</th>
-              <th className="table-header-cell">Clock Out</th>
-              <th className="table-header-cell">Location</th>
-            </tr>
-          </thead>
-          <tbody>
-            {attendances.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="text-center py-12 text-secondary-500">
-                  <Clock className="w-12 h-12 mx-auto mb-2 text-secondary-300" />
-                  <p>No attendance records found</p>
-                </td>
-              </tr>
-            ) : (
-              attendances.map((att) => (
-                <tr key={att.id} className="table-row">
-                  <td className="table-cell">
-                    <div className="font-medium text-secondary-900">
-                      {att.employee ? att.employee.name : `Employee ${att.employee_id}`}
-                    </div>
-                  </td>
-                  <td className="table-cell text-secondary-600">
-                    {att.date ? new Date(att.date).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="table-cell">
-                    <span className="badge badge-success">
-                      {att.clock_in ? new Date(att.clock_in).toLocaleTimeString() : 'N/A'}
-                    </span>
-                  </td>
-                  <td className="table-cell">
-                    {att.clock_out ? (
-                      <span className="badge badge-danger">
-                        {new Date(att.clock_out).toLocaleTimeString()}
-                      </span>
-                    ) : (
-                      <span className="text-secondary-400">-</span>
-                    )}
-                  </td>
-                  <td className="table-cell text-secondary-600">{att.location || '-'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-md transform transition-all">
-            <h2 className="text-2xl font-bold text-secondary-900 mb-6">Clock In</h2>
-            <form onSubmit={handleClockIn} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">Employee</label>
-                <select
-                  required
-                  value={formData.employee_id}
-                  onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="">Select Employee</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">Location</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="e.g., Office, Remote"
-                  className="input-field"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-success"
-                >
-                  Clock In
-                </button>
-              </div>
-            </form>
+    <div style={{ padding: '24px' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title level={2} style={{ margin: 0 }}>Attendance</Title>
+            <Text type="secondary">Track employee clock-in and clock-out times</Text>
           </div>
+          <Button
+            type="primary"
+            icon={<ClockCircleOutlined />}
+            onClick={() => setShowModal(true)}
+            size="large"
+            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+          >
+            Clock In
+          </Button>
         </div>
-      )}
+
+        <Card>
+          <Table
+            columns={columns}
+            dataSource={attendances}
+            loading={loading}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} records`,
+            }}
+          />
+        </Card>
+      </Space>
+
+      <Modal
+        title={
+          <Space>
+            <ClockCircleOutlined />
+            <span>Clock In</span>
+          </Space>
+        }
+        open={showModal}
+        onCancel={() => {
+          setShowModal(false);
+          form.resetFields();
+        }}
+        footer={null}
+        width={500}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleClockIn}
+          style={{ marginTop: 24 }}
+        >
+          <Form.Item
+            label="Employee"
+            name="employee_id"
+            rules={[{ required: true, message: 'Please select an employee' }]}
+          >
+            <Select placeholder="Select Employee" size="large">
+              {employees.map((emp) => (
+                <Select.Option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Location"
+            name="location"
+          >
+            <Input placeholder="e.g., Office, Remote" size="large" />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={() => {
+                setShowModal(false);
+                form.resetFields();
+              }}>
+                Cancel
+              </Button>
+              <Button 
+                type="primary" 
+                htmlType="submit"
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Clock In
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
