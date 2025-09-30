@@ -142,8 +142,10 @@ const Dashboard = () => {
           <Card 
             title="Quick Actions"
             style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-            headStyle={{ color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.2)' }}
-            bodyStyle={{ color: '#fff' }}
+            styles={{ 
+              header: { color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.2)' },
+              body: { color: '#fff' }
+            }}
           >
             <Paragraph style={{ color: 'rgba(255,255,255,0.8)' }}>
               Perform common tasks quickly

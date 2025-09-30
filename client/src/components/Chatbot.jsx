@@ -1,12 +1,30 @@
-import { useState } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { FloatButton, Card, Input, Button, Avatar, Space, Typography, Spin } from 'antd';
+import { 
+  MessageOutlined, 
+  SendOutlined, 
+  CloseOutlined, 
+  RobotOutlined, 
+  UserOutlined 
+} from '@ant-design/icons';
 import { chatAPI } from '../api/api';
+
+const { Text } = Typography;
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -30,96 +48,163 @@ const Chatbot = () => {
 
   return (
     <>
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-50 hover:scale-110"
-          style={{ backgroundColor: '#2563eb', color: 'white' }}
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
-      )}
+      <FloatButton
+        icon={<MessageOutlined />}
+        type="primary"
+        style={{ right: 24, bottom: 24 }}
+        onClick={() => setIsOpen(!isOpen)}
+      />
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[500px] rounded-xl shadow-2xl border flex flex-col z-50" style={{ backgroundColor: 'white', borderColor: '#e2e8f0' }}>
-          <div className="text-white p-4 rounded-t-xl flex justify-between items-center" style={{ background: 'linear-gradient(to right, #2563eb, #1d4ed8)' }}>
-            <div>
-              <h3 className="font-semibold text-lg">HR Assistant</h3>
-              <p className="text-xs text-primary-100">Always here to help</p>
-            </div>
-            <button 
-              onClick={() => setIsOpen(false)} 
-              className="hover:bg-white/20 p-2 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: '#f8fafc' }}>
+        <Card
+          title={
+            <Space>
+              <RobotOutlined style={{ fontSize: '20px' }} />
+              <div>
+                <div style={{ fontWeight: 600 }}>HR Assistant</div>
+                <Text type="secondary" style={{ fontSize: '12px' }}>Always here to help</Text>
+              </div>
+            </Space>
+          }
+          extra={
+            <Button 
+              type="text" 
+              icon={<CloseOutlined />} 
+              onClick={() => setIsOpen(false)}
+            />
+          }
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            right: 24,
+            width: 400,
+            height: 600,
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+          styles={{
+            body: {
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              overflow: 'hidden'
+            }
+          }}
+        >
+          <div style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            padding: '16px',
+            backgroundColor: '#f5f5f5'
+          }}>
             {messages.length === 0 && (
-              <div className="text-center mt-12" style={{ color: '#64748b' }}>
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: '#dbeafe' }}>
-                  <MessageCircle className="w-8 h-8" style={{ color: '#2563eb' }} />
+              <div style={{ textAlign: 'center', marginTop: 60 }}>
+                <Avatar 
+                  size={64} 
+                  icon={<RobotOutlined />} 
+                  style={{ backgroundColor: '#1890ff', marginBottom: 16 }} 
+                />
+                <div>
+                  <Text strong>Welcome to HR Assistant!</Text>
                 </div>
-                <p className="text-sm font-medium mb-2">Welcome to HR Assistant!</p>
-                <p className="text-xs">Ask me anything about HR policies, leave requests, or payroll</p>
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 8 }}>
+                  Ask me anything about HR policies, employees, leave requests, or payroll
+                </Text>
               </div>
             )}
+            
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                style={{
+                  display: 'flex',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  marginBottom: 12
+                }}
               >
-                <div
-                  className={`max-w-[80%] p-3 rounded-lg shadow-sm ${
-                    msg.role === 'user'
-                      ? 'text-white rounded-br-none'
-                      : 'rounded-bl-none border'
-                  }`}
-                  style={
-                    msg.role === 'user'
-                      ? { backgroundColor: '#2563eb', color: 'white' }
-                      : { backgroundColor: 'white', color: '#0f172a', borderColor: '#e2e8f0' }
-                  }
-                >
-                  <p className="text-sm">{msg.content}</p>
-                </div>
+                <Space direction="horizontal" align="start">
+                  {msg.role === 'bot' && (
+                    <Avatar 
+                      size="small" 
+                      icon={<RobotOutlined />} 
+                      style={{ backgroundColor: '#1890ff' }} 
+                    />
+                  )}
+                  <div
+                    style={{
+                      maxWidth: '280px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: msg.role === 'user' ? '#1890ff' : '#fff',
+                      color: msg.role === 'user' ? '#fff' : '#000',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    <Text style={{ color: msg.role === 'user' ? '#fff' : '#000', fontSize: '14px' }}>
+                      {msg.content}
+                    </Text>
+                  </div>
+                  {msg.role === 'user' && (
+                    <Avatar 
+                      size="small" 
+                      icon={<UserOutlined />} 
+                      style={{ backgroundColor: '#87d068' }} 
+                    />
+                  )}
+                </Space>
               </div>
             ))}
+            
             {loading && (
-              <div className="flex justify-start">
-                <div className="border p-3 rounded-lg rounded-bl-none shadow-sm" style={{ backgroundColor: 'white', borderColor: '#e2e8f0' }}>
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#2563eb' }}></div>
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#2563eb', animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#2563eb', animationDelay: '0.4s' }}></div>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 12 }}>
+                <Space>
+                  <Avatar 
+                    size="small" 
+                    icon={<RobotOutlined />} 
+                    style={{ backgroundColor: '#1890ff' }} 
+                  />
+                  <div style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: '#fff',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                  }}>
+                    <Spin size="small" />
                   </div>
-                </div>
+                </Space>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t rounded-b-xl" style={{ borderColor: '#e2e8f0', backgroundColor: 'white' }}>
-            <div className="flex gap-2">
-              <input
-                type="text"
+          <div style={{ 
+            padding: '12px 16px', 
+            borderTop: '1px solid #f0f0f0',
+            backgroundColor: '#fff'
+          }}>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && handleSend()}
+                onPressEnter={() => !loading && handleSend()}
                 placeholder="Type your message..."
-                className="input-field text-sm"
                 disabled={loading}
+                style={{ flex: 1 }}
               />
-              <button
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
-                className="btn btn-primary px-3 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
+                loading={loading}
+              />
+            </Space.Compact>
           </div>
-        </div>
+        </Card>
       )}
     </>
   );
