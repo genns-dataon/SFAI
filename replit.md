@@ -103,19 +103,23 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
      - "Show me the engineering team" - Flexible department queries
      - "Who does Alice report to?" - Natural language reporting structure queries
      - Works with variations like "give me", "show", "list", "tell me about" without keyword matching
-   - **Attendance Recording via Chat**:
-     - **Clock In**: Keywords like "clock in", "check in", "start work", "mark attendance"
-     - **Clock Out**: Keywords like "clock out", "end work", "leaving", "done for the day"
+   - **Attendance Recording via Chat (AI Function Calling)**:
+     - **Self Clock In/Out**: AI understands natural language like "clock in", "check in", "start work", "clock out", "end work", "leaving"
      - Authenticates user and links to employee record via user_id
      - Prevents duplicate clock-ins for the same day
      - Calculates and displays total time worked when clocking out
-     - **For Managers**: Record attendance for others with "record attendance for [name]", "clock in for [name]"
+     - **Manager Function**: Record attendance for direct reports with AI-powered understanding
+       - Understands phrases like "record attendance for [name]", "clock in for [name]", "mark [name] present"
+       - **Authorization Security**: Managers can ONLY record attendance for their direct reports
+       - Verifies requesting user is a manager (has direct reports)
+       - Validates target employee reports to the requesting manager (ManagerID check)
+       - Returns error if non-manager or manager tries to record for non-direct-report
      - Conversational prompting asks for employee name if not provided
-   - **Leave Request Creation via Chat**:
+   - **Leave Request Creation via Chat (AI Function Calling)**:
      - Creates actual leave requests directly from chat (not just guidance)
-     - Keywords: "request leave", "apply for leave", "I want leave for tomorrow"
-     - **Date Parsing**: Understands "tomorrow", "today", "next week" (Mon-Fri)
-     - **Leave Types**: Detects "sick", "vacation", "personal", "emergency" from message
+     - AI understands natural language: "request leave", "apply for leave", "I want leave for tomorrow"
+     - **Date Parsing**: AI interprets "tomorrow", "today", "next week" (Mon-Fri)
+     - **Leave Types**: AI detects "sick", "vacation", "personal", "emergency" from message
      - Conversational prompting asks for missing information (dates, leave type)
      - Returns confirmation with leave details and pending status
 
