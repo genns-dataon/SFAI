@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Users, Clock, Calendar, TrendingUp, ArrowUp } from 'lucide-react';
+import { Card, Row, Col, Statistic, Button, Typography, Space } from 'antd';
+import { 
+  UserOutlined, 
+  ClockCircleOutlined, 
+  CalendarOutlined, 
+  RiseOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined 
+} from '@ant-design/icons';
 import { employeeAPI, attendanceAPI, leaveAPI } from '../api/api';
+
+const { Title, Paragraph } = Typography;
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -8,6 +18,7 @@ const Dashboard = () => {
     todayAttendance: 0,
     pendingLeaves: 0,
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -32,111 +43,152 @@ const Dashboard = () => {
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchStats();
   }, []);
 
-  const cards = [
-    { 
-      title: 'Total Employees', 
-      value: stats.totalEmployees, 
-      icon: Users, 
-      bgColor: 'bg-primary-50', 
-      iconColor: 'bg-primary-600',
-      textColor: 'text-primary-700',
-      trend: '+12%'
+  const statsCards = [
+    {
+      title: 'Total Employees',
+      value: stats.totalEmployees,
+      icon: <UserOutlined style={{ fontSize: '24px', color: '#1890ff' }} />,
+      trend: 12,
+      trendLabel: 'vs last month'
     },
-    { 
-      title: "Today's Attendance", 
-      value: stats.todayAttendance, 
-      icon: Clock, 
-      bgColor: 'bg-success-50', 
-      iconColor: 'bg-success-600',
-      textColor: 'text-success-700',
-      trend: '+5%'
+    {
+      title: "Today's Attendance",
+      value: stats.todayAttendance,
+      icon: <ClockCircleOutlined style={{ fontSize: '24px', color: '#52c41a' }} />,
+      trend: 5,
+      trendLabel: 'vs last month'
     },
-    { 
-      title: 'Pending Leaves', 
-      value: stats.pendingLeaves, 
-      icon: Calendar, 
-      bgColor: 'bg-warning-50', 
-      iconColor: 'bg-warning-600',
-      textColor: 'text-warning-700',
-      trend: '-3%'
+    {
+      title: 'Pending Leaves',
+      value: stats.pendingLeaves,
+      icon: <CalendarOutlined style={{ fontSize: '24px', color: '#faad14' }} />,
+      trend: -3,
+      trendLabel: 'vs last month'
     },
-    { 
-      title: 'Departments', 
-      value: 3, 
-      icon: TrendingUp, 
-      bgColor: 'bg-purple-50', 
-      iconColor: 'bg-purple-600',
-      textColor: 'text-purple-700',
-      trend: '0%'
+    {
+      title: 'Departments',
+      value: 3,
+      icon: <RiseOutlined style={{ fontSize: '24px', color: '#722ed1' }} />,
+      trend: 0,
+      trendLabel: 'vs last month'
     },
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-secondary-900">Dashboard</h1>
-        <p className="text-secondary-600 mt-1">Welcome back! Here's what's happening today.</p>
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2}>Dashboard</Title>
+        <Paragraph type="secondary">Welcome back! Here's what's happening today.</Paragraph>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, idx) => {
-          const Icon = card.icon;
-          return (
-            <div key={idx} className="bg-white rounded-xl shadow-sm border border-secondary-200 p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-secondary-600 text-sm font-medium">{card.title}</p>
-                  <p className="text-3xl font-bold text-secondary-900 mt-3">{card.value}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUp className="w-4 h-4 text-success-600" />
-                    <span className="text-sm font-medium text-success-600">{card.trend}</span>
-                    <span className="text-sm text-secondary-500 ml-1">vs last month</span>
-                  </div>
+      <Row gutter={[16, 16]}>
+        {statsCards.map((stat, index) => (
+          <Col xs={24} sm={12} lg={6} key={index}>
+            <Card loading={loading} hoverable>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Paragraph type="secondary" style={{ margin: 0 }}>{stat.title}</Paragraph>
+                  {stat.icon}
                 </div>
-                <div className={`${card.iconColor} p-3 rounded-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <Statistic
+                  value={stat.value}
+                  valueStyle={{ fontSize: '28px', fontWeight: 600 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {stat.trend > 0 ? (
+                    <>
+                      <ArrowUpOutlined style={{ color: '#52c41a' }} />
+                      <span style={{ color: '#52c41a', fontWeight: 500 }}>{stat.trend}%</span>
+                    </>
+                  ) : stat.trend < 0 ? (
+                    <>
+                      <ArrowDownOutlined style={{ color: '#ff4d4f' }} />
+                      <span style={{ color: '#ff4d4f', fontWeight: 500 }}>{Math.abs(stat.trend)}%</span>
+                    </>
+                  ) : (
+                    <span style={{ color: '#8c8c8c', fontWeight: 500 }}>0%</span>
+                  )}
+                  <span style={{ color: '#8c8c8c', fontSize: '14px', marginLeft: 4 }}>{stat.trendLabel}</span>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </Space>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-secondary-200 p-6">
-          <h2 className="text-xl font-semibold text-secondary-900 mb-4">Welcome to the HCM System</h2>
-          <p className="text-secondary-600 leading-relaxed">
-            Manage your workforce efficiently with our comprehensive Human Capital Management system.
-            Navigate through the sidebar to access employees, attendance, leave requests, and salary information.
-          </p>
-          <div className="mt-6 flex gap-3">
-            <button className="btn btn-primary">View All Employees</button>
-            <button className="btn btn-secondary">Generate Report</button>
-          </div>
-        </div>
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={16}>
+          <Card title="Welcome to the HCM System">
+            <Paragraph>
+              Manage your workforce efficiently with our comprehensive Human Capital Management system.
+              Navigate through the sidebar to access employees, attendance, leave requests, and salary information.
+            </Paragraph>
+            <Space style={{ marginTop: 16 }}>
+              <Button type="primary" size="large">View All Employees</Button>
+              <Button size="large">Generate Report</Button>
+            </Space>
+          </Card>
+        </Col>
 
-        <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl shadow-sm p-6 text-white">
-          <h3 className="text-lg font-semibold mb-2">Quick Actions</h3>
-          <p className="text-primary-100 text-sm mb-4">Perform common tasks quickly</p>
-          <div className="space-y-2">
-            <button className="w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-              Add New Employee
-            </button>
-            <button className="w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-              Clock In/Out
-            </button>
-            <button className="w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-              Request Leave
-            </button>
-          </div>
-        </div>
-      </div>
+        <Col xs={24} lg={8}>
+          <Card 
+            title="Quick Actions"
+            style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+            headStyle={{ color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.2)' }}
+            bodyStyle={{ color: '#fff' }}
+          >
+            <Paragraph style={{ color: 'rgba(255,255,255,0.8)' }}>
+              Perform common tasks quickly
+            </Paragraph>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Button 
+                block 
+                size="large" 
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  border: 'none', 
+                  color: '#fff',
+                  textAlign: 'left'
+                }}
+              >
+                Add New Employee
+              </Button>
+              <Button 
+                block 
+                size="large" 
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  border: 'none', 
+                  color: '#fff',
+                  textAlign: 'left'
+                }}
+              >
+                Clock In/Out
+              </Button>
+              <Button 
+                block 
+                size="large" 
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  border: 'none', 
+                  color: '#fff',
+                  textAlign: 'left'
+                }}
+              >
+                Request Leave
+              </Button>
+            </Space>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };
