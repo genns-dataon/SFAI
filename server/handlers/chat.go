@@ -58,7 +58,9 @@ func Chat(c *gin.Context) {
                         // Get current user ID from context
                         userID, exists := c.Get("userID")
                         if !exists {
-                                c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": "⚠️ You need to be logged in to clock in via chat.\n\nYou can use the Clock In button on the Attendance page instead, or login first if you have an account.",
+                                })
                                 return
                         }
 
@@ -118,7 +120,9 @@ func Chat(c *gin.Context) {
                         // Get current user ID from context
                         userID, exists := c.Get("userID")
                         if !exists {
-                                c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+                                c.JSON(http.StatusOK, gin.H{
+                                        "response": "⚠️ You need to be logged in to clock out via chat.\n\nYou can use the Clock Out button on the Attendance page instead, or login first if you have an account.",
+                                })
                                 return
                         }
 
@@ -287,7 +291,9 @@ func Chat(c *gin.Context) {
                 // Get current user ID from context
                 userID, exists := c.Get("userID")
                 if !exists {
-                        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+                        c.JSON(http.StatusOK, gin.H{
+                                "response": "⚠️ You need to be logged in to request leave via chat.\n\nYou can use the Request Leave button on the Leave page instead, or login first if you have an account.",
+                        })
                         return
                 }
 

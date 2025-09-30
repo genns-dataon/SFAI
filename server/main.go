@@ -39,26 +39,27 @@ func main() {
                 api.POST("/auth/signup", handlers.Signup)
                 api.POST("/auth/login", handlers.Login)
 
+                api.GET("/employees", handlers.GetEmployees)
+                api.GET("/employees/:id", handlers.GetEmployee)
+                api.POST("/employees", handlers.CreateEmployee)
+                api.PUT("/employees/:id", handlers.UpdateEmployee)
+
+                api.POST("/attendance/clockin", handlers.ClockIn)
+                api.POST("/attendance/clockout", handlers.ClockOut)
+                api.GET("/attendance", handlers.GetAttendance)
+
+                api.POST("/leave", handlers.CreateLeaveRequest)
+                api.GET("/leave", handlers.GetLeaveRequests)
+
+                api.GET("/salary/export", handlers.ExportSalary)
+                api.POST("/salary/payslip", handlers.GeneratePayslip)
+
+                api.POST("/chat", handlers.Chat)
+
                 protected := api.Group("/")
                 protected.Use(middleware.AuthMiddleware())
                 {
                         protected.GET("/me", handlers.GetMe)
-                        protected.GET("/employees", handlers.GetEmployees)
-                        protected.GET("/employees/:id", handlers.GetEmployee)
-                        protected.POST("/employees", handlers.CreateEmployee)
-                        protected.PUT("/employees/:id", handlers.UpdateEmployee)
-
-                        protected.POST("/attendance/clockin", handlers.ClockIn)
-                        protected.POST("/attendance/clockout", handlers.ClockOut)
-                        protected.GET("/attendance", handlers.GetAttendance)
-
-                        protected.POST("/leave", handlers.CreateLeaveRequest)
-                        protected.GET("/leave", handlers.GetLeaveRequests)
-
-                        protected.GET("/salary/export", handlers.ExportSalary)
-                        protected.POST("/salary/payslip", handlers.GeneratePayslip)
-
-                        protected.POST("/chat", handlers.Chat)
                 }
         }
 
