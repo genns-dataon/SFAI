@@ -26,6 +26,15 @@ Preferred communication style: Simple, everyday language.
 - Maintained Tailwind CSS for custom styling and layout utilities alongside Ant Design components
 - Used Axios over fetch API for better error handling, request/response interceptors, and cleaner syntax
 
+**Responsive Design:**
+- **Collapsible Sidebar**: Sidebar automatically collapses on screens < 768px for mobile optimization
+- **Manual Toggle**: Always-visible toggle button (hamburger icon) for user control
+- **Icon-Only Mode**: Sidebar shows only icons when collapsed (80px on desktop, hidden on mobile)
+- **Horizontal Scrolling**: Tables enable horizontal scroll on mobile to prevent data cutoff
+- **Responsive Modals**: All modals use responsive width (90% with max-width constraints)
+- **Adaptive Layouts**: Employee detail views display single-column layout on mobile devices
+- **Mobile Padding**: Reduced padding (16px) on mobile for better space utilization
+
 **Development Configuration:**
 - ESLint configured with React Hooks and React Refresh plugins for code quality
 - Server configured to run on port 5000 with host `0.0.0.0` for broader network access
