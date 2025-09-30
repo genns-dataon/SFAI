@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, DatePicker, Space, Tag, Typography, message } from 'antd';
-import { PlusOutlined, SearchOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, Input, Select, DatePicker, Space, Tag, Typography, message, Descriptions, Divider, Tabs, InputNumber } from 'antd';
+import { PlusOutlined, SearchOutlined, UserOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { employeeAPI } from '../api/api';
 import dayjs from 'dayjs';
 
@@ -11,6 +11,8 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [form] = Form.useForm();
 
@@ -36,6 +38,8 @@ const Employees = () => {
       const formattedData = {
         ...values,
         hire_date: values.hire_date.format('YYYY-MM-DD'),
+        date_of_birth: values.date_of_birth ? values.date_of_birth.format('YYYY-MM-DD') : null,
+        probation_end_date: values.probation_end_date ? values.probation_end_date.format('YYYY-MM-DD') : null,
         manager_id: values.manager_id || null,
       };
       
@@ -57,6 +61,11 @@ const Employees = () => {
     }
   };
 
+  const handleViewDetails = (employee) => {
+    setSelectedEmployee(employee);
+    setShowDetailModal(true);
+  };
+
   const handleEdit = (employee) => {
     setEditingEmployee(employee);
     form.setFieldsValue({
@@ -66,6 +75,26 @@ const Employees = () => {
       department_id: employee.department_id,
       manager_id: employee.manager_id,
       hire_date: dayjs(employee.hire_date),
+      employee_number: employee.employee_number,
+      date_of_birth: employee.date_of_birth ? dayjs(employee.date_of_birth) : null,
+      national_id: employee.national_id,
+      tax_id: employee.tax_id,
+      marital_status: employee.marital_status,
+      employment_type: employee.employment_type,
+      employment_status: employee.employment_status,
+      job_level: employee.job_level,
+      work_location: employee.work_location,
+      work_arrangement: employee.work_arrangement,
+      base_salary: employee.base_salary,
+      pay_frequency: employee.pay_frequency,
+      currency: employee.currency,
+      bank_account: employee.bank_account,
+      benefit_eligibility: employee.benefit_eligibility,
+      probation_end_date: employee.probation_end_date ? dayjs(employee.probation_end_date) : null,
+      performance_rating: employee.performance_rating,
+      skills: employee.skills,
+      training_completed: employee.training_completed,
+      career_notes: employee.career_notes,
     });
     setShowModal(true);
   };
@@ -81,8 +110,8 @@ const Employees = () => {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => (
-        <Space>
+      render: (text, record) => (
+        <Space style={{ cursor: 'pointer' }} onClick={() => handleViewDetails(record)}>
           <div style={{
             width: 40,
             height: 40,
@@ -96,7 +125,7 @@ const Employees = () => {
               {text.split(' ').map(n => n[0]).join('')}
             </Text>
           </div>
-          <Text strong>{text}</Text>
+          <Text strong style={{ color: '#1890ff' }}>{text}</Text>
         </Space>
       ),
     },
@@ -201,7 +230,7 @@ const Employees = () => {
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={800}
       >
         <Form
           form={form}
@@ -209,68 +238,242 @@ const Employees = () => {
           onFinish={handleSubmit}
           style={{ marginTop: 24 }}
         >
-          <Form.Item
-            label="Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter employee name' }]}
-          >
-            <Input placeholder="John Doe" />
-          </Form.Item>
+          <Tabs
+            defaultActiveKey="1"
+            items={[
+              {
+                key: '1',
+                label: 'Basic Info',
+                children: (
+                  <>
+                    <Form.Item
+                      label="Name"
+                      name="name"
+                      rules={[{ required: true, message: 'Please enter employee name' }]}
+                    >
+                      <Input placeholder="John Doe" />
+                    </Form.Item>
 
-          <Form.Item
-            label="Email"
-            name="email"
-            rules={[
-              { required: true, message: 'Please enter email' },
-              { type: 'email', message: 'Please enter a valid email' },
+                    <Form.Item
+                      label="Email"
+                      name="email"
+                      rules={[
+                        { required: true, message: 'Please enter email' },
+                        { type: 'email', message: 'Please enter a valid email' },
+                      ]}
+                    >
+                      <Input placeholder="john.doe@company.com" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Job Title"
+                      name="job_title"
+                      rules={[{ required: true, message: 'Please enter job title' }]}
+                    >
+                      <Input placeholder="Software Engineer" />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Department"
+                      name="department_id"
+                      rules={[{ required: true, message: 'Please select department' }]}
+                      initialValue={1}
+                    >
+                      <Select>
+                        <Select.Option value={1}>Engineering</Select.Option>
+                        <Select.Option value={2}>Human Resources</Select.Option>
+                        <Select.Option value={3}>Sales</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Manager"
+                      name="manager_id"
+                    >
+                      <Select placeholder="Select a manager (optional)" allowClear>
+                        {employees
+                          .filter(emp => !editingEmployee || emp.id !== editingEmployee.id)
+                          .map(emp => (
+                            <Select.Option key={emp.id} value={emp.id}>
+                              {emp.name} ({emp.job_title})
+                            </Select.Option>
+                          ))}
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Hire Date"
+                      name="hire_date"
+                      rules={[{ required: true, message: 'Please select hire date' }]}
+                    >
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: '2',
+                label: 'Personal & ID',
+                children: (
+                  <>
+                    <Form.Item label="Employee Number" name="employee_number">
+                      <Input placeholder="EMP-001" />
+                    </Form.Item>
+
+                    <Form.Item label="Date of Birth" name="date_of_birth">
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Form.Item label="National ID / Passport" name="national_id">
+                      <Input placeholder="ID or Passport Number" />
+                    </Form.Item>
+
+                    <Form.Item label="Tax ID" name="tax_id">
+                      <Input placeholder="Tax Identification Number" />
+                    </Form.Item>
+
+                    <Form.Item label="Marital Status" name="marital_status">
+                      <Select placeholder="Select marital status" allowClear>
+                        <Select.Option value="single">Single</Select.Option>
+                        <Select.Option value="married">Married</Select.Option>
+                        <Select.Option value="divorced">Divorced</Select.Option>
+                        <Select.Option value="widowed">Widowed</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: '3',
+                label: 'Employment',
+                children: (
+                  <>
+                    <Form.Item label="Employment Type" name="employment_type">
+                      <Select placeholder="Select employment type" allowClear>
+                        <Select.Option value="full-time">Full-time</Select.Option>
+                        <Select.Option value="part-time">Part-time</Select.Option>
+                        <Select.Option value="contract">Contract</Select.Option>
+                        <Select.Option value="intern">Intern</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Employment Status" name="employment_status">
+                      <Select placeholder="Select employment status" allowClear>
+                        <Select.Option value="active">Active</Select.Option>
+                        <Select.Option value="probation">Probation</Select.Option>
+                        <Select.Option value="resigned">Resigned</Select.Option>
+                        <Select.Option value="terminated">Terminated</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Job Level / Grade" name="job_level">
+                      <Input placeholder="e.g., Senior, Mid-level, Junior" />
+                    </Form.Item>
+
+                    <Form.Item label="Work Location" name="work_location">
+                      <Input placeholder="e.g., New York Office, Singapore" />
+                    </Form.Item>
+
+                    <Form.Item label="Work Arrangement" name="work_arrangement">
+                      <Select placeholder="Select work arrangement" allowClear>
+                        <Select.Option value="onsite">Onsite</Select.Option>
+                        <Select.Option value="hybrid">Hybrid</Select.Option>
+                        <Select.Option value="remote">Remote</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: '4',
+                label: 'Compensation',
+                children: (
+                  <>
+                    <Form.Item label="Base Salary" name="base_salary">
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        placeholder="50000"
+                        min={0}
+                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        parser={(value) => value.replace(/\$\s?|(,*)/g, '')}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label="Pay Frequency" name="pay_frequency">
+                      <Select placeholder="Select pay frequency" allowClear>
+                        <Select.Option value="monthly">Monthly</Select.Option>
+                        <Select.Option value="biweekly">Biweekly</Select.Option>
+                        <Select.Option value="weekly">Weekly</Select.Option>
+                        <Select.Option value="annual">Annual</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Currency" name="currency">
+                      <Select placeholder="Select currency" allowClear>
+                        <Select.Option value="USD">USD</Select.Option>
+                        <Select.Option value="EUR">EUR</Select.Option>
+                        <Select.Option value="GBP">GBP</Select.Option>
+                        <Select.Option value="IDR">IDR</Select.Option>
+                        <Select.Option value="SGD">SGD</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Bank Account" name="bank_account">
+                      <Input placeholder="Bank account number" />
+                    </Form.Item>
+
+                    <Form.Item label="Benefit Eligibility" name="benefit_eligibility">
+                      <Input.TextArea
+                        placeholder="e.g., Medical, Housing, Pension"
+                        rows={3}
+                      />
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: '5',
+                label: 'Performance',
+                children: (
+                  <>
+                    <Form.Item label="Probation End Date" name="probation_end_date">
+                      <DatePicker style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Form.Item label="Performance Rating" name="performance_rating">
+                      <Select placeholder="Select performance rating" allowClear>
+                        <Select.Option value="excellent">Excellent</Select.Option>
+                        <Select.Option value="good">Good</Select.Option>
+                        <Select.Option value="satisfactory">Satisfactory</Select.Option>
+                        <Select.Option value="needs-improvement">Needs Improvement</Select.Option>
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item label="Skills / Certifications" name="skills">
+                      <Input.TextArea
+                        placeholder="e.g., React, Python, AWS Certified"
+                        rows={3}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label="Training Completed" name="training_completed">
+                      <Input.TextArea
+                        placeholder="e.g., Leadership Training, Safety Certification"
+                        rows={3}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label="Career / Succession Notes" name="career_notes">
+                      <Input.TextArea
+                        placeholder="Career development notes"
+                        rows={3}
+                      />
+                    </Form.Item>
+                  </>
+                ),
+              },
             ]}
-          >
-            <Input placeholder="john.doe@company.com" />
-          </Form.Item>
-
-          <Form.Item
-            label="Job Title"
-            name="job_title"
-            rules={[{ required: true, message: 'Please enter job title' }]}
-          >
-            <Input placeholder="Software Engineer" />
-          </Form.Item>
-
-          <Form.Item
-            label="Department"
-            name="department_id"
-            rules={[{ required: true, message: 'Please select department' }]}
-            initialValue={1}
-          >
-            <Select>
-              <Select.Option value={1}>Engineering</Select.Option>
-              <Select.Option value={2}>Human Resources</Select.Option>
-              <Select.Option value={3}>Sales</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Manager"
-            name="manager_id"
-          >
-            <Select placeholder="Select a manager (optional)" allowClear>
-              {employees
-                .filter(emp => !editingEmployee || emp.id !== editingEmployee.id)
-                .map(emp => (
-                  <Select.Option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.job_title})
-                  </Select.Option>
-                ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Hire Date"
-            name="hire_date"
-            rules={[{ required: true, message: 'Please select hire date' }]}
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
+          />
 
           <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
@@ -287,6 +490,98 @@ const Employees = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={
+          <Space>
+            <EyeOutlined />
+            <span>Employee Details</span>
+          </Space>
+        }
+        open={showDetailModal}
+        onCancel={() => {
+          setShowDetailModal(false);
+          setSelectedEmployee(null);
+        }}
+        footer={[
+          <Button key="close" onClick={() => setShowDetailModal(false)}>
+            Close
+          </Button>,
+          <Button key="edit" type="primary" onClick={() => {
+            setShowDetailModal(false);
+            handleEdit(selectedEmployee);
+          }}>
+            Edit Employee
+          </Button>,
+        ]}
+        width={900}
+      >
+        {selectedEmployee && (
+          <div style={{ marginTop: 24 }}>
+            <Title level={4}>Basic Information</Title>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Name">{selectedEmployee.name}</Descriptions.Item>
+              <Descriptions.Item label="Email">{selectedEmployee.email}</Descriptions.Item>
+              <Descriptions.Item label="Job Title">{selectedEmployee.job_title}</Descriptions.Item>
+              <Descriptions.Item label="Department">{selectedEmployee.department?.name || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Manager">{selectedEmployee.manager?.name || 'None'}</Descriptions.Item>
+              <Descriptions.Item label="Hire Date">
+                {selectedEmployee.hire_date ? new Date(selectedEmployee.hire_date).toLocaleDateString() : 'N/A'}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Title level={4}>Personal & Identification</Title>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Employee Number">{selectedEmployee.employee_number || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Date of Birth">
+                {selectedEmployee.date_of_birth ? new Date(selectedEmployee.date_of_birth).toLocaleDateString() : 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="National ID">{selectedEmployee.national_id || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Tax ID">{selectedEmployee.tax_id || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Marital Status">{selectedEmployee.marital_status || 'N/A'}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Title level={4}>Employment & Job Details</Title>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Employment Type">{selectedEmployee.employment_type || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Employment Status">
+                <Tag color={selectedEmployee.employment_status === 'active' ? 'green' : 'orange'}>
+                  {selectedEmployee.employment_status || 'N/A'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Job Level">{selectedEmployee.job_level || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Work Location">{selectedEmployee.work_location || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Work Arrangement">{selectedEmployee.work_arrangement || 'N/A'}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Title level={4}>Compensation & Benefits</Title>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Base Salary">
+                {selectedEmployee.base_salary ? `${selectedEmployee.currency || 'USD'} ${selectedEmployee.base_salary.toLocaleString()}` : 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Pay Frequency">{selectedEmployee.pay_frequency || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Currency">{selectedEmployee.currency || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Bank Account">{selectedEmployee.bank_account || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Benefit Eligibility" span={2}>{selectedEmployee.benefit_eligibility || 'N/A'}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+            <Title level={4}>Performance & Development</Title>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Probation End Date">
+                {selectedEmployee.probation_end_date ? new Date(selectedEmployee.probation_end_date).toLocaleDateString() : 'N/A'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Performance Rating">{selectedEmployee.performance_rating || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Skills" span={2}>{selectedEmployee.skills || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Training Completed" span={2}>{selectedEmployee.training_completed || 'N/A'}</Descriptions.Item>
+              <Descriptions.Item label="Career Notes" span={2}>{selectedEmployee.career_notes || 'N/A'}</Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
       </Modal>
     </div>
   );
