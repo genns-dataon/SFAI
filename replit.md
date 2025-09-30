@@ -62,7 +62,7 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
    - POST generate payslip for employee (protected)
 
 6. **AI Chat Assistant** (`/api/chat`)
-   - POST send message and receive response (protected, stub implementation)
+   - POST send message and receive AI-powered response (protected, powered by OpenAI GPT-4o-mini)
 
 **API Client Design:**
 - Centralized axios instance with base configuration
@@ -140,13 +140,17 @@ This approach allows seamless deployment across different hosting environments w
 - `github.com/golang-jwt/jwt/v5` - JWT authentication
 - `golang.org/x/crypto/bcrypt` - Password hashing
 - `github.com/joho/godotenv` - Environment variable management
+- `github.com/openai/openai-go/v2` - Official OpenAI SDK for Go
+
+**Go Version:**
+- Go 1.24 (upgraded from 1.19 for OpenAI SDK compatibility)
 
 **Services:**
 - Employee management with CRUD operations
 - Attendance tracking with clock-in/out functionality
 - Leave management with request/approval workflow
 - Salary/payroll processing with payslip generation
-- AI-powered chat assistant (stub implementation ready for LLM integration)
+- AI-powered chat assistant using OpenAI GPT-4o-mini for intelligent HR query responses
 
 ## Hosting & Deployment
 

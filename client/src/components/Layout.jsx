@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Users, Clock, Calendar, DollarSign, LayoutDashboard, Building2 } from 'lucide-react';
+import Chatbot from './Chatbot';
 
 const Layout = () => {
   const location = useLocation();
@@ -52,6 +53,7 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+      <Chatbot />
     </div>
   );
 };
