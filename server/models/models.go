@@ -19,6 +19,8 @@ type Employee struct {
         ManagerID    *uint          `json:"manager_id"`
         Manager      *Employee      `gorm:"foreignKey:ManagerID" json:"manager,omitempty"`
         Reports      []Employee     `gorm:"foreignKey:ManagerID" json:"reports,omitempty"`
+        UserID       *uint          `json:"user_id"`
+        User         *User          `gorm:"foreignKey:UserID" json:"user,omitempty"`
         
         EmployeeNumber      string     `json:"employee_number"`
         DateOfBirth         *time.Time `json:"date_of_birth"`
@@ -120,6 +122,7 @@ type User struct {
         CreatedAt time.Time      `json:"created_at"`
         UpdatedAt time.Time      `json:"updated_at"`
         DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+        Username  string         `gorm:"unique" json:"username" binding:"required"`
         Email     string         `gorm:"unique" json:"email" binding:"required,email"`
         Password  string         `json:"-"`
 }
