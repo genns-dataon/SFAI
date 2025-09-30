@@ -1,6 +1,6 @@
 # Overview
 
-This is an Employee Management System built with a React + Vite frontend and a backend API. The application handles core HR functions including employee records management, attendance tracking, leave management, salary processing, and includes an AI chat assistant feature. The system uses a client-server architecture with REST API communication.
+This is an Employee Management System built with a React + Vite frontend and a backend API. The application handles core HR functions including employee records management with hierarchical reporting structure, attendance tracking, leave management, salary processing, organization chart visualization, and includes an AI chat assistant feature. The system uses a client-server architecture with REST API communication.
 
 # User Preferences
 
@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **HTTP Client**: Axios 1.12.2 for API communication
 - **Icons**: Ant Design Icons (@ant-design/icons) for consistent iconography
 - **Date Utilities**: Day.js for Ant Design DatePicker and RangePicker components
+- **Org Chart**: react-organizational-chart for hierarchical employee visualization
 
 **Design Decisions:**
 - Chose Vite over Create React App for faster build times and better development experience with HMR (Hot Module Replacement)
@@ -47,10 +48,12 @@ The frontend communicates with a RESTful API at `/api` base path with the follow
    - GET /me - Get current user info (protected)
 
 2. **Employee Management** (`/api/employees`)
-   - GET all employees (protected)
-   - GET employee by ID (protected)
-   - POST create employee (protected)
-   - PUT update employee (protected)
+   - GET all employees with manager relationships (protected)
+   - GET employee by ID with manager and direct reports (protected)
+   - POST create employee with optional manager assignment (protected)
+   - PUT update employee with manager hierarchy validation (protected)
+   - **Manager Hierarchy**: Self-referential employee relationships with validation to prevent self-reporting
+   - **Edit Functionality**: Full CRUD operations with secure update handling to prevent ID tampering
 
 3. **Attendance Tracking** (`/api/attendance`)
    - GET all attendance records (protected)
