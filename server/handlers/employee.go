@@ -32,10 +32,40 @@ func GetEmployee(c *gin.Context) {
 }
 
 func CreateEmployee(c *gin.Context) {
-        var employee models.Employee
-        if err := c.ShouldBindJSON(&employee); err != nil {
+        var createData struct {
+                Name         string `json:"name" binding:"required"`
+                Email        string `json:"email" binding:"required,email"`
+                DepartmentID uint   `json:"department_id"`
+                JobTitle     string `json:"job_title"`
+                HireDate     string `json:"hire_date"`
+                ManagerID    *uint  `json:"manager_id"`
+        }
+
+        if err := c.ShouldBindJSON(&createData); err != nil {
                 c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
                 return
+        }
+
+        // Prevent self-reporting
+        if createData.ManagerID != nil && *createData.ManagerID == 0 {
+                c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid manager ID"})
+                return
+        }
+
+        employee := models.Employee{
+                Name:         createData.Name,
+                Email:        createData.Email,
+                DepartmentID: createData.DepartmentID,
+                JobTitle:     createData.JobTitle,
+                ManagerID:    createData.ManagerID,
+        }
+
+        // Parse hire date if provided
+        if createData.HireDate != "" {
+                hireDate, err := time.Parse("2006-01-02", createData.HireDate)
+                if err == nil {
+                        employee.HireDate = hireDate
+                }
         }
 
         result := database.DB.Create(&employee)
@@ -44,7 +74,7 @@ func CreateEmployee(c *gin.Context) {
                 return
         }
 
-        database.DB.Preload("Department").First(&employee, employee.ID)
+        database.DB.Preload("Department").Preload("Manager").First(&employee, employee.ID)
         c.JSON(http.StatusCreated, employee)
 }
 
