@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Spin } from 'antd';
-import axios from 'axios';
-
-const API_URL = window.location.hostname.includes('replit.dev')
-  ? window.location.origin.replace('-5000', '-8080')
-  : 'http://localhost:8080';
+import api from '../api/api';
 
 const ProtectedRoute = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -19,9 +15,7 @@ const ProtectedRoute = ({ children }) => {
       }
 
       try {
-        await axios.get(`${API_URL}/api/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.get('/me');
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Token verification failed:', error);

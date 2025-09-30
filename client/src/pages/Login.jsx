@@ -2,13 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../api/api';
 
 const { Title, Paragraph } = Typography;
-
-const API_URL = window.location.hostname.includes('replit.dev')
-  ? window.location.origin.replace('-5000', '-8080')
-  : 'http://localhost:8080';
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -17,7 +13,7 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
+      const response = await api.post('/auth/login', {
         username: values.username,
         password: values.password,
       });
