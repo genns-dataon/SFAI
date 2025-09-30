@@ -13,13 +13,16 @@ Preferred communication style: Simple, everyday language.
 **Technology Stack:**
 - **Framework**: React 19.1.1 with Vite 7.1.7 as the build tool
 - **Routing**: React Router DOM 7.9.3 for client-side navigation
+- **UI Library**: Ant Design (antd) for professional enterprise UI components
 - **Styling**: Tailwind CSS 4.1.13 with PostCSS for utility-first styling
 - **HTTP Client**: Axios 1.12.2 for API communication
-- **Icons**: Lucide React for UI iconography
+- **Icons**: Ant Design Icons (@ant-design/icons) for consistent iconography
+- **Date Utilities**: Day.js for Ant Design DatePicker and RangePicker components
 
 **Design Decisions:**
 - Chose Vite over Create React App for faster build times and better development experience with HMR (Hot Module Replacement)
-- Implemented utility-first CSS with Tailwind to maintain consistent styling and reduce CSS bloat
+- Implemented Ant Design UI library for consistent, professional enterprise design system with pre-built components (Tables, Forms, Cards, Modals, etc.)
+- Maintained Tailwind CSS for custom styling and layout utilities alongside Ant Design components
 - Used Axios over fetch API for better error handling, request/response interceptors, and cleaner syntax
 
 **Development Configuration:**
@@ -122,7 +125,9 @@ This approach allows seamless deployment across different hosting environments w
 - `react` (19.1.1) - Core UI library
 - `react-dom` (19.1.1) - React DOM rendering
 - `react-router-dom` (7.9.3) - Client-side routing
-- `lucide-react` (0.544.0) - Icon library
+- `antd` - Ant Design component library for professional enterprise UI
+- `@ant-design/icons` - Ant Design icon library
+- `dayjs` - Date utility library for Ant Design DatePicker
 - `tailwindcss` (4.1.13) - Utility-first CSS framework
 - `autoprefixer` (10.4.21) - CSS vendor prefixing
 - `postcss` (8.5.6) - CSS transformation

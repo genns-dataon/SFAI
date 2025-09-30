@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Button, Typography, Space } from 'antd';
+import { Card, Row, Col, Statistic, Button, Typography, Space, message } from 'antd';
 import { 
   UserOutlined, 
   ClockCircleOutlined, 
@@ -43,6 +43,7 @@ const Dashboard = () => {
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
+        message.error('Failed to load dashboard statistics');
       } finally {
         setLoading(false);
       }
