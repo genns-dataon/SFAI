@@ -280,12 +280,39 @@ func Chat(c *gin.Context) {
                 "time off", "vacation request", "i want leave", "i need time off",
                 "book leave", "get leave",
         }
+        
+        // Also check for date mentions with duration keywords (for follow-up messages)
+        dateKeywords := []string{"tomorrow", "today", "next week"}
+        durationKeywords := []string{"day", "days", "week"}
+        
+        hasDateKeyword := false
+        hasDurationKeyword := false
+        
+        for _, dateKw := range dateKeywords {
+                if strings.Contains(messageLower, dateKw) {
+                        hasDateKeyword = true
+                        break
+                }
+        }
+        
+        for _, durKw := range durationKeywords {
+                if strings.Contains(messageLower, durKw) {
+                        hasDurationKeyword = true
+                        break
+                }
+        }
+        
         isLeaveRequest := false
         for _, keyword := range leaveRequestKeywords {
                 if strings.Contains(messageLower, keyword) {
                         isLeaveRequest = true
                         break
                 }
+        }
+        
+        // If message contains both date and duration keywords, treat it as a leave request
+        if !isLeaveRequest && hasDateKeyword && hasDurationKeyword {
+                isLeaveRequest = true
         }
 
         if isLeaveRequest {
@@ -311,12 +338,23 @@ func Chat(c *gin.Context) {
                 var startDate, endDate time.Time
                 var leaveType string
                 dateFound := false
+                
+                // Parse duration (number of days) from message
+                numDays := 1
+                dayNumbers := map[string]int{"1 day": 1, "one day": 1, "2 days": 2, "two days": 2, "3 days": 3, "three days": 3, "4 days": 4, "5 days": 5}
+                
+                for pattern, days := range dayNumbers {
+                        if strings.Contains(messageLower, pattern) {
+                                numDays = days
+                                break
+                        }
+                }
 
                 // Check for "tomorrow"
                 if strings.Contains(messageLower, "tomorrow") {
                         tomorrow := time.Now().AddDate(0, 0, 1)
                         startDate = time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, time.UTC)
-                        endDate = startDate
+                        endDate = startDate.AddDate(0, 0, numDays-1)
                         dateFound = true
                 }
 
@@ -324,7 +362,7 @@ func Chat(c *gin.Context) {
                 if strings.Contains(messageLower, "today") {
                         today := time.Now()
                         startDate = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
-                        endDate = startDate
+                        endDate = startDate.AddDate(0, 0, numDays-1)
                         dateFound = true
                 }
 
