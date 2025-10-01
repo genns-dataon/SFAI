@@ -66,4 +66,6 @@ externalPort = 3001
 channel = "stable-25_05"
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
+run = ["bash", "-c", "cd server && go run main.go"]
+build = ["bash", "-c", "cd client && npm install && npm run build"]
