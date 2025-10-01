@@ -62,9 +62,8 @@ externalPort = 3000
 localPort = 40057
 externalPort = 3001
 
-[[ports]]
-localPort = 45013
-externalPort = 3003
-
 [nix]
 channel = "stable-25_05"
+
+[deployment]
+deploymentTarget = "cloudrun"

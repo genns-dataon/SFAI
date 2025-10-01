@@ -34,6 +34,10 @@ func main() {
                 AllowCredentials: true,
         }))
 
+        r.GET("/health", func(c *gin.Context) {
+                c.JSON(200, gin.H{"status": "healthy"})
+        })
+
         api := r.Group("/api")
         {
                 api.POST("/auth/signup", handlers.Signup)
@@ -70,6 +74,11 @@ func main() {
                         protected.DELETE("/settings/:key", handlers.DeleteSetting)
                 }
         }
+
+        r.Static("/assets", "../client/dist/assets")
+        r.NoRoute(func(c *gin.Context) {
+                c.File("../client/dist/index.html")
+        })
 
         port := os.Getenv("PORT")
         if port == "" {
