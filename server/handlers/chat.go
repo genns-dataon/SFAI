@@ -167,6 +167,47 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                         Name:        "list_todays_attendance",
                         Description: openai.String("Get a list of employees who have clocked in today (who came to work today)"),
                 }),
+                // Additional Analytics & Filtering Functions
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employees_by_work_location",
+                        Description: openai.String("Get employees filtered by work location (e.g., San Francisco Office, New York Office, etc.)"),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "location": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "The work location to filter by",
+                                        },
+                                },
+                                "required": []string{"location"},
+                        },
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employees_with_tenure",
+                        Description: openai.String("Get list of employees with their years of service/tenure. Useful for 'how long have they worked here' questions."),
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_employee_salaries",
+                        Description: openai.String("Get salary information for all employees (base salary, currency, pay frequency)"),
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "count_employees_by_type",
+                        Description: openai.String("Count employees by employment type (full-time, part-time, contract, etc.)"),
+                        Parameters: openai.FunctionParameters{
+                                "type": "object",
+                                "properties": map[string]interface{}{
+                                        "employment_type": map[string]interface{}{
+                                                "type":        "string",
+                                                "description": "The employment type to count (full-time, part-time, contract, intern, or 'all' for breakdown)",
+                                        },
+                                },
+                                "required": []string{"employment_type"},
+                        },
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "count_total_employees",
+                        Description: openai.String("Get the total count of employees. Use this when user asks 'how many employees' without listing them."),
+                }),
         }
         
         // Load chatbot settings and build system prompt
@@ -635,6 +676,169 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                         result += fmt.Sprintf("%d. %s - %s %s\n", i+1, att.Employee.Name, status, timeInfo)
                 }
                 return result, nil
+                
+        case "get_employees_by_work_location":
+                var args struct {
+                        Location string `json:"location"`
+                }
+                if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
+                        return "", fmt.Errorf("invalid arguments: %v", err)
+                }
+                
+                var employees []models.Employee
+                if err := database.DB.Preload("Department").
+                        Where("LOWER(work_location) LIKE ?", "%"+strings.ToLower(args.Location)+"%").
+                        Find(&employees).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                
+                if len(employees) == 0 {
+                        return fmt.Sprintf("No employees found at %s", args.Location), nil
+                }
+                
+                result := fmt.Sprintf("📍 Employees at %s:\n\n", args.Location)
+                for _, emp := range employees {
+                        deptName := "N/A"
+                        if emp.Department != nil {
+                                deptName = emp.Department.Name
+                        }
+                        result += fmt.Sprintf("• %s (%s) - %s | Location: %s\n", 
+                                emp.Name, emp.JobTitle, deptName, emp.WorkLocation)
+                }
+                return result, nil
+                
+        case "get_employees_with_tenure":
+                var employees []models.Employee
+                if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                
+                type EmployeeTenure struct {
+                        Employee      models.Employee
+                        YearsOfService float64
+                }
+                
+                var tenures []EmployeeTenure
+                now := time.Now()
+                
+                for _, emp := range employees {
+                        years := now.Sub(emp.HireDate).Hours() / (24 * 365.25)
+                        tenures = append(tenures, EmployeeTenure{
+                                Employee:      emp,
+                                YearsOfService: years,
+                        })
+                }
+                
+                // Sort by tenure descending (longest first)
+                for i := 0; i < len(tenures); i++ {
+                        for j := i + 1; j < len(tenures); j++ {
+                                if tenures[j].YearsOfService > tenures[i].YearsOfService {
+                                        tenures[i], tenures[j] = tenures[j], tenures[i]
+                                }
+                        }
+                }
+                
+                result := "📅 Employee Tenure (Longest to Newest):\n\n"
+                for _, t := range tenures {
+                        deptName := "N/A"
+                        if t.Employee.Department != nil {
+                                deptName = t.Employee.Department.Name
+                        }
+                        result += fmt.Sprintf("• %s (%s) - %s | %.1f years of service\n", 
+                                t.Employee.Name, t.Employee.JobTitle, deptName, t.YearsOfService)
+                }
+                return result, nil
+                
+        case "get_employee_salaries":
+                var employees []models.Employee
+                if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                
+                result := "💰 Employee Salaries:\n\n"
+                for _, emp := range employees {
+                        deptName := "N/A"
+                        if emp.Department != nil {
+                                deptName = emp.Department.Name
+                        }
+                        
+                        salaryStr := "Not specified"
+                        if emp.BaseSalary > 0 {
+                                currency := emp.Currency
+                                if currency == "" {
+                                        currency = "USD"
+                                }
+                                payFreq := emp.PayFrequency
+                                if payFreq == "" {
+                                        payFreq = "annually"
+                                }
+                                salaryStr = fmt.Sprintf("%.2f %s (%s)", emp.BaseSalary, currency, payFreq)
+                        }
+                        
+                        result += fmt.Sprintf("• %s (%s) - %s | Salary: %s\n", 
+                                emp.Name, emp.JobTitle, deptName, salaryStr)
+                }
+                return result, nil
+                
+        case "count_employees_by_type":
+                var args struct {
+                        EmploymentType string `json:"employment_type"`
+                }
+                if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
+                        return "", fmt.Errorf("invalid arguments: %v", err)
+                }
+                
+                if strings.ToLower(args.EmploymentType) == "all" {
+                        // Get breakdown of all types
+                        type TypeCount struct {
+                                Type  string
+                                Count int
+                        }
+                        
+                        rows, err := database.DB.Raw(`
+                                SELECT employment_type as type, COUNT(*) as count 
+                                FROM employees 
+                                WHERE deleted_at IS NULL 
+                                GROUP BY employment_type
+                                ORDER BY count DESC
+                        `).Rows()
+                        if err != nil {
+                                return "", fmt.Errorf("database error: %v", err)
+                        }
+                        defer rows.Close()
+                        
+                        result := "📊 Employee Count by Employment Type:\n\n"
+                        totalCount := 0
+                        for rows.Next() {
+                                var tc TypeCount
+                                if err := rows.Scan(&tc.Type, &tc.Count); err != nil {
+                                        return "", fmt.Errorf("scan error: %v", err)
+                                }
+                                if tc.Type == "" {
+                                        tc.Type = "Not specified"
+                                }
+                                result += fmt.Sprintf("• %s: %d employees\n", tc.Type, tc.Count)
+                                totalCount += tc.Count
+                        }
+                        result += fmt.Sprintf("\n📈 Total: %d employees", totalCount)
+                        return result, nil
+                } else {
+                        // Count specific type
+                        var count int64
+                        if err := database.DB.Model(&models.Employee{}).
+                                Where("LOWER(employment_type) = ?", strings.ToLower(args.EmploymentType)).
+                                Count(&count).Error; err != nil {
+                                return "", fmt.Errorf("database error: %v", err)
+                        }
+                        return fmt.Sprintf("📊 There are %d %s employees.", count, args.EmploymentType), nil
+                }
+                
+        case "count_total_employees":
+                var count int64
+                if err := database.DB.Model(&models.Employee{}).Count(&count).Error; err != nil {
+                        return "", fmt.Errorf("database error: %v", err)
+                }
+                return fmt.Sprintf("📊 Total number of employees: %d", count), nil
                 
                 default:
                         return "", fmt.Errorf("unknown function: %s", functionName)
