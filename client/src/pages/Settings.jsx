@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, message, Popconfirm, Space, Typography, Alert, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, CommentOutlined, LikeOutlined, DislikeOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, CommentOutlined, LikeOutlined, DislikeOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { settingsAPI, feedbackAPI } from '../api/api';
 
 const { Text } = Typography;
@@ -142,11 +142,15 @@ const Settings = () => {
       dataIndex: 'rating',
       key: 'rating',
       width: '10%',
-      render: (rating) => (
-        rating === 'positive' ? 
-          <Tag icon={<LikeOutlined />} color="success">Positive</Tag> :
-          <Tag icon={<DislikeOutlined />} color="error">Negative</Tag>
-      ),
+      render: (rating) => {
+        if (rating === 'positive') {
+          return <Tag icon={<LikeOutlined />} color="success">Positive</Tag>;
+        } else if (rating === 'resolved') {
+          return <Tag icon={<CheckCircleOutlined />} color="blue">Resolved</Tag>;
+        } else {
+          return <Tag icon={<DislikeOutlined />} color="error">Negative</Tag>;
+        }
+      },
     },
     {
       title: 'Question',
