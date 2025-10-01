@@ -77,6 +77,7 @@ func main() {
                         
                         protected.POST("/feedback", handlers.CreateFeedback)
                         protected.GET("/feedback", handlers.GetAllFeedback)
+                        protected.PUT("/feedback/:id", handlers.UpdateFeedback)
                         
                         protected.GET("/settings", handlers.GetSettings)
                         protected.GET("/settings/:key", handlers.GetSetting)
