@@ -3,6 +3,7 @@ package main
 import (
         "log"
         "os"
+        "strings"
 
         "hcm-backend/database"
         "hcm-backend/handlers"
@@ -33,6 +34,15 @@ func main() {
                 ExposeHeaders:    []string{"Content-Length"},
                 AllowCredentials: true,
         }))
+
+        r.GET("/", func(c *gin.Context) {
+                accept := c.GetHeader("Accept")
+                if strings.Contains(accept, "application/json") {
+                        c.JSON(200, gin.H{"status": "healthy"})
+                } else {
+                        c.File("../client/dist/index.html")
+                }
+        })
 
         r.GET("/health", func(c *gin.Context) {
                 c.JSON(200, gin.H{"status": "healthy"})
@@ -76,8 +86,13 @@ func main() {
         }
 
         r.Static("/assets", "../client/dist/assets")
+        r.StaticFile("/logo.png", "../client/dist/logo.png")
+        r.StaticFile("/vite.svg", "../client/dist/vite.svg")
+        
         r.NoRoute(func(c *gin.Context) {
-                c.File("../client/dist/index.html")
+                if c.Request.URL.Path != "/" {
+                        c.File("../client/dist/index.html")
+                }
         })
 
         port := os.Getenv("PORT")
