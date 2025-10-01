@@ -46,6 +46,7 @@ export const attendanceAPI = {
 export const leaveAPI = {
   getAll: () => api.get('/leave'),
   create: (data) => api.post('/leave', data),
+  updateStatus: (id, status) => api.put(`/leave/${id}`, { status }),
 };
 
 export const salaryAPI = {

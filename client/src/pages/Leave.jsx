@@ -53,6 +53,17 @@ const Leave = () => {
     }
   };
 
+  const handleStatusChange = async (leaveId, newStatus) => {
+    try {
+      await leaveAPI.updateStatus(leaveId, newStatus);
+      message.success('Leave status updated successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error updating leave status:', error);
+      message.error('Failed to update leave status');
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       pending: 'orange',
@@ -93,10 +104,23 @@ const Leave = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)} style={{ textTransform: 'capitalize' }}>
-          {status}
-        </Tag>
+      render: (status, record) => (
+        <Select
+          value={status}
+          onChange={(newStatus) => handleStatusChange(record.id, newStatus)}
+          style={{ width: 120 }}
+          size="small"
+        >
+          <Select.Option value="pending">
+            <Tag color="orange">Pending</Tag>
+          </Select.Option>
+          <Select.Option value="approved">
+            <Tag color="green">Approved</Tag>
+          </Select.Option>
+          <Select.Option value="rejected">
+            <Tag color="red">Rejected</Tag>
+          </Select.Option>
+        </Select>
       ),
     },
   ];

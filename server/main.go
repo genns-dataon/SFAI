@@ -69,6 +69,7 @@ func main() {
 
                         protected.POST("/leave", handlers.CreateLeaveRequest)
                         protected.GET("/leave", handlers.GetLeaveRequests)
+                        protected.PUT("/leave/:id", handlers.UpdateLeaveStatus)
 
                         protected.GET("/salary/export", handlers.ExportSalary)
                         protected.POST("/salary/payslip", handlers.GeneratePayslip)
