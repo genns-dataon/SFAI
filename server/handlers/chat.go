@@ -38,7 +38,7 @@ func getDepartments(employees []models.Employee) map[string]bool {
 }
 
 // handleChatWithAI uses OpenAI function calling to intelligently handle all chatbot operations
-func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
+func handleChatWithAI(userMessage string, history []map[string]string, userID interface{}) (string, error) {
         client := getOpenAIClient()
         ctx := context.Background()
         
@@ -191,6 +191,10 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                         Description: openai.String("Get salary information for all employees (base salary, currency, pay frequency)"),
                 }),
                 openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
+                        Name:        "get_my_salary",
+                        Description: openai.String("Get the current logged-in user's salary information. Use when user asks 'my salary', 'how much do I make', 'what's my pay', etc."),
+                }),
+                openai.ChatCompletionFunctionTool(openai.FunctionDefinitionParam{
                         Name:        "count_employees_by_type",
                         Description: openai.String("Count employees by employment type (full-time, part-time, contract, etc.)"),
                         Parameters: openai.FunctionParameters{
@@ -227,14 +231,28 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                 }
         }
         
+        // Build messages array with conversation history
+        messages := []openai.ChatCompletionMessageParamUnion{
+                openai.SystemMessage(systemPrompt),
+        }
+        
+        // Add conversation history
+        for _, msg := range history {
+                if msg["role"] == "user" {
+                        messages = append(messages, openai.UserMessage(msg["content"]))
+                } else if msg["role"] == "assistant" {
+                        messages = append(messages, openai.AssistantMessage(msg["content"]))
+                }
+        }
+        
+        // Add current user message
+        messages = append(messages, openai.UserMessage(userMessage))
+        
         // Initial API call
         params := openai.ChatCompletionNewParams{
-                Messages: []openai.ChatCompletionMessageParamUnion{
-                        openai.SystemMessage(systemPrompt),
-                        openai.UserMessage(userMessage),
-                },
-                Tools:  tools,
-                Model:  openai.ChatModelGPT4oMini,
+                Messages: messages,
+                Tools:    tools,
+                Model:    openai.ChatModelGPT4oMini,
         }
         
         response, err := client.Chat.Completions.New(ctx, params)
@@ -780,6 +798,38 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
                 }
                 return result, nil
                 
+        case "get_my_salary":
+                if userID == nil {
+                        return "⚠️ You need to be logged in to view your salary.", nil
+                }
+                
+                var employee models.Employee
+                if err := database.DB.Preload("Department").Where("user_id = ?", userID).First(&employee).Error; err != nil {
+                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                }
+                
+                salaryStr := "Not specified"
+                if employee.BaseSalary > 0 {
+                        currency := employee.Currency
+                        if currency == "" {
+                                currency = "USD"
+                        }
+                        payFreq := employee.PayFrequency
+                        if payFreq == "" {
+                                payFreq = "annually"
+                        }
+                        salaryStr = fmt.Sprintf("%.2f %s (%s)", employee.BaseSalary, currency, payFreq)
+                }
+                
+                deptName := "N/A"
+                if employee.Department != nil {
+                        deptName = employee.Department.Name
+                }
+                
+                result := fmt.Sprintf("💰 Your Salary Information:\n\n• Name: %s\n• Job Title: %s\n• Department: %s\n• Salary: %s", 
+                        employee.Name, employee.JobTitle, deptName, salaryStr)
+                return result, nil
+                
         case "count_employees_by_type":
                 var args struct {
                         EmploymentType string `json:"employment_type"`
@@ -850,7 +900,8 @@ func handleChatWithAI(userMessage string, userID interface{}) (string, error) {
 
 func Chat(c *gin.Context) {
         var input struct {
-                Message string `json:"message" binding:"required"`
+                Message  string `json:"message" binding:"required"`
+                History  []map[string]string `json:"history"`
         }
 
         if err := c.ShouldBindJSON(&input); err != nil {
@@ -860,7 +911,7 @@ func Chat(c *gin.Context) {
 
         userID, _ := c.Get("userID")
 
-        aiResponse, err := handleChatWithAI(input.Message, userID)
+        aiResponse, err := handleChatWithAI(input.Message, input.History, userID)
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{
                         "error": fmt.Sprintf("Failed to process request: %v", err),

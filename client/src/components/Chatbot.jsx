@@ -42,7 +42,13 @@ const Chatbot = () => {
     setLoading(true);
 
     try {
-      const response = await chatAPI.sendMessage(input);
+      // Build conversation history for API
+      const history = messages.map(msg => ({
+        role: msg.role === 'bot' ? 'assistant' : 'user',
+        content: msg.content
+      }));
+
+      const response = await chatAPI.sendMessage(input, history);
       const botMessage = { 
         role: 'bot', 
         content: response.data.response,
