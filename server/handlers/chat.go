@@ -325,6 +325,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                         
                         if verbose {
                                 verboseSteps = append(verboseSteps, fmt.Sprintf("✅ Found %d employees in database", len(employees)))
+                                verboseSteps = append(verboseSteps, "📝 Formatting results for display...")
                         }
                         
                         result := "📋 Employee List:\n\n"
@@ -336,23 +337,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 result += fmt.Sprintf("• ID: %d | %s (%s) - %s | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, deptName, emp.Email)
                         }
-                        
-                        if verbose {
-                                verboseSteps = append(verboseSteps, "📤 Sending results back to OpenAI for formatting...")
-                        }
-                        
-                        // Add function result and get final response
-                        params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
-                        finalResponse, err := client.Chat.Completions.New(ctx, params)
-                        if err != nil {
-                                return "", verboseSteps, err
-                        }
-                        
-                        if verbose {
-                                verboseSteps = append(verboseSteps, "✅ Received formatted response from OpenAI")
-                        }
-                        
-                        return finalResponse.Choices[0].Message.Content, verboseSteps, nil
+                        return result, verboseSteps, nil
                         
                 case "get_employees_by_department":
                         var args struct {
@@ -375,16 +360,11 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                         
                         if verbose {
                                 verboseSteps = append(verboseSteps, fmt.Sprintf("✅ Found %d employees in %s department", len(employees), args.Department))
+                                verboseSteps = append(verboseSteps, "📝 Formatting results for display...")
                         }
                         
                         if len(employees) == 0 {
-                                result := fmt.Sprintf("No employees found in %s department", args.Department)
-                                params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
-                                finalResponse, err := client.Chat.Completions.New(ctx, params)
-                                if err != nil {
-                                        return "", verboseSteps, err
-                                }
-                                return finalResponse.Choices[0].Message.Content, verboseSteps, nil
+                                return fmt.Sprintf("No employees found in %s department", args.Department), verboseSteps, nil
                         }
                         
                         result := fmt.Sprintf("👥 Employees in %s:\n\n", args.Department)
@@ -392,22 +372,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 result += fmt.Sprintf("• ID: %d | %s (%s) | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, emp.Email)
                         }
-                        
-                        if verbose {
-                                verboseSteps = append(verboseSteps, "📤 Sending results back to OpenAI for formatting...")
-                        }
-                        
-                        params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
-                        finalResponse, err := client.Chat.Completions.New(ctx, params)
-                        if err != nil {
-                                return "", verboseSteps, err
-                        }
-                        
-                        if verbose {
-                                verboseSteps = append(verboseSteps, "✅ Received formatted response from OpenAI")
-                        }
-                        
-                        return finalResponse.Choices[0].Message.Content, verboseSteps, nil
+                        return result, verboseSteps, nil
                         
                 case "get_employee_reporting_structure":
                         var args struct {
