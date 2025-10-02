@@ -998,8 +998,12 @@ func Chat(c *gin.Context) {
         }
 
         userID, _ := c.Get("userID")
+        
+        fmt.Printf("[DEBUG] Verbose mode: %v\n", input.Verbose)
 
         aiResponse, verboseSteps, err := handleChatWithAI(input.Message, input.History, input.Verbose, userID)
+        
+        fmt.Printf("[DEBUG] Verbose steps count: %d\n", len(verboseSteps))
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{
                         "error": fmt.Sprintf("Failed to process request: %v", err),
