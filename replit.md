@@ -35,6 +35,14 @@ The frontend is built with React 19.1.1 and Vite, leveraging Ant Design for a pr
         - Leave requests (creation with natural language date parsing, view requests by month)
         - Feedback system with thumbs up/down ratings and comment collection
         - Configurable settings (key-value pairs injected into system prompt)
+        - **Verbose Mode**: Optional toggle that displays detailed execution steps including:
+            - System prompt building (character count, settings count)
+            - Message preparation (total messages, history count)
+            - OpenAI API calls (model name, available tools)
+            - Function calling details (function names, JSON parameters)
+            - Database queries (SQL statements, result counts)
+            - Response formatting (sending data to/from OpenAI)
+            - Styled with purple background, italic text, and thunder bolt icon (⚡)
     - **Feedback Management**: Stores user feedback on AI responses.
     - **Settings Management**: CRUD operations for chatbot configuration (note: unsecured by user request).
 
@@ -72,4 +80,4 @@ The frontend is built with React 19.1.1 and Vite, leveraging Ant Design for a pr
 ## Hosting & Deployment
 
 - **Platforms**: Local development, Replit cloud platform.
-- **Go Version**: 1.24.
+- **Go Version**: 1.23.
