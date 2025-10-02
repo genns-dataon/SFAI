@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { FloatButton, Card, Input, Button, Avatar, Space, Typography, Spin, Modal, message as antMessage, Tooltip } from 'antd';
+import { FloatButton, Card, Input, Button, Avatar, Space, Typography, Spin, Modal, message as antMessage, Tooltip, Switch } from 'antd';
 import { 
   MessageOutlined, 
   SendOutlined, 
@@ -9,7 +9,8 @@ import {
   LikeOutlined,
   DislikeOutlined,
   LikeFilled,
-  DislikeFilled
+  DislikeFilled,
+  ThunderboltOutlined
 } from '@ant-design/icons';
 import { chatAPI, feedbackAPI } from '../api/api';
 
@@ -21,6 +22,7 @@ const Chatbot = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verboseMode, setVerboseMode] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState({ visible: false, messageIdx: null, rating: null });
   const [feedbackComment, setFeedbackComment] = useState('');
   const messagesEndRef = useRef(null);
@@ -45,10 +47,23 @@ const Chatbot = () => {
       // Build conversation history for API
       const history = messages.map(msg => ({
         role: msg.role === 'bot' ? 'assistant' : 'user',
-        content: msg.content
-      }));
+        content: msg.role === 'verbose' ? '' : msg.content
+      })).filter(msg => msg.content);
 
-      const response = await chatAPI.sendMessage(input, history);
+      const response = await chatAPI.sendMessage(input, history, verboseMode);
+      
+      // Add verbose steps if provided
+      if (response.data.verbose_steps && response.data.verbose_steps.length > 0) {
+        response.data.verbose_steps.forEach(step => {
+          setMessages((prev) => [...prev, {
+            role: 'verbose',
+            content: step,
+            question: input,
+            feedback: null
+          }]);
+        });
+      }
+      
       const botMessage = { 
         role: 'bot', 
         content: response.data.response,
@@ -129,12 +144,26 @@ const Chatbot = () => {
       {isOpen && (
         <Card
           title={
-            <Space>
-              <RobotOutlined style={{ fontSize: '20px' }} />
-              <div>
-                <div style={{ fontWeight: 600 }}>HR Assistant</div>
-                <Text type="secondary" style={{ fontSize: '12px' }}>Always here to help</Text>
-              </div>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Space>
+                <RobotOutlined style={{ fontSize: '20px' }} />
+                <div>
+                  <div style={{ fontWeight: 600 }}>HR Assistant</div>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>Always here to help</Text>
+                </div>
+              </Space>
+              <Space size="small">
+                <Tooltip title="Show detailed steps">
+                  <Space size={4}>
+                    <ThunderboltOutlined style={{ fontSize: '12px', color: verboseMode ? '#1890ff' : '#8c8c8c' }} />
+                    <Switch 
+                      size="small"
+                      checked={verboseMode}
+                      onChange={setVerboseMode}
+                    />
+                  </Space>
+                </Tooltip>
+              </Space>
             </Space>
           }
           extra={
@@ -193,15 +222,15 @@ const Chatbot = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  marginBottom: 12
+                  marginBottom: msg.role === 'verbose' ? 8 : 12
                 }}
               >
                 <Space direction="horizontal" align="start">
-                  {msg.role === 'bot' && (
+                  {(msg.role === 'bot' || msg.role === 'verbose') && (
                     <Avatar 
                       size="small" 
-                      icon={<RobotOutlined />} 
-                      style={{ backgroundColor: '#1890ff' }} 
+                      icon={msg.role === 'verbose' ? <ThunderboltOutlined /> : <RobotOutlined />} 
+                      style={{ backgroundColor: msg.role === 'verbose' ? '#722ed1' : '#1890ff' }} 
                     />
                   )}
                   <div
@@ -209,14 +238,16 @@ const Chatbot = () => {
                       maxWidth: '280px',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      backgroundColor: msg.role === 'user' ? '#1890ff' : '#fff',
-                      color: msg.role === 'user' ? '#fff' : '#000',
+                      backgroundColor: msg.role === 'user' ? '#1890ff' : msg.role === 'verbose' ? '#f9f0ff' : '#fff',
+                      color: msg.role === 'user' ? '#fff' : msg.role === 'verbose' ? '#531dab' : '#000',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                       whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word'
+                      wordBreak: 'break-word',
+                      border: msg.role === 'verbose' ? '1px solid #d3adf7' : 'none',
+                      fontStyle: msg.role === 'verbose' ? 'italic' : 'normal'
                     }}
                   >
-                    <Text style={{ color: msg.role === 'user' ? '#fff' : '#000', fontSize: '14px' }}>
+                    <Text style={{ color: msg.role === 'user' ? '#fff' : msg.role === 'verbose' ? '#531dab' : '#000', fontSize: msg.role === 'verbose' ? '12px' : '14px' }}>
                       {msg.content}
                     </Text>
                   </div>

@@ -55,7 +55,7 @@ export const salaryAPI = {
 };
 
 export const chatAPI = {
-  sendMessage: (message, history = []) => api.post('/chat', { message, history }),
+  sendMessage: (message, history = [], verbose = false) => api.post('/chat', { message, history, verbose }),
 };
 
 export const feedbackAPI = {

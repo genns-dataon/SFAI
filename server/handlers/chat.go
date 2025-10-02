@@ -38,9 +38,10 @@ func getDepartments(employees []models.Employee) map[string]bool {
 }
 
 // handleChatWithAI uses OpenAI function calling to intelligently handle all chatbot operations
-func handleChatWithAI(userMessage string, history []map[string]string, userID interface{}) (string, error) {
+func handleChatWithAI(userMessage string, history []map[string]string, verbose bool, userID interface{}) (string, []string, error) {
         client := getOpenAIClient()
         ctx := context.Background()
+        var verboseSteps []string
         
         // Define available functions for the AI to call
         tools := []openai.ChatCompletionToolUnionParam{
@@ -255,19 +256,26 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 Model:    openai.ChatModelGPT4oMini,
         }
         
+        if verbose {
+                verboseSteps = append(verboseSteps, "🔍 Analyzing your question...")
+        }
+        
         response, err := client.Chat.Completions.New(ctx, params)
         if err != nil {
-                return "", err
+                return "", verboseSteps, err
         }
         
         // Check if AI wants to call a function
         toolCalls := response.Choices[0].Message.ToolCalls
         if len(toolCalls) == 0 {
                 // No function call, return direct response
-                if len(response.Choices) > 0 {
-                        return response.Choices[0].Message.Content, nil
+                if verbose {
+                        verboseSteps = append(verboseSteps, "💬 Responding directly without database access")
                 }
-                return "", fmt.Errorf("no response from AI")
+                if len(response.Choices) > 0 {
+                        return response.Choices[0].Message.Content, verboseSteps, nil
+                }
+                return "", verboseSteps, fmt.Errorf("no response from AI")
         }
         
         // Add assistant's message to conversation
@@ -282,7 +290,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 case "list_all_employees":
                         var employees []models.Employee
                         if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
-                                return "", fmt.Errorf("database error: %v", err)
+                                return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
                         
                         result := "📋 Employee List:\n\n"
@@ -294,25 +302,25 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 result += fmt.Sprintf("• ID: %d | %s (%s) - %s | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, deptName, emp.Email)
                         }
-                        return result, nil
+                        return result, verboseSteps, nil
                         
                 case "get_employees_by_department":
                         var args struct {
                                 Department string `json:"department"`
                         }
                         if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                                return "", fmt.Errorf("invalid arguments: %v", err)
+                                return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                         }
                         
                         var employees []models.Employee
                         if err := database.DB.Preload("Department").Joins("JOIN departments ON departments.id = employees.department_id").
                                 Where("LOWER(departments.name) LIKE ?", "%"+strings.ToLower(args.Department)+"%").
                                 Find(&employees).Error; err != nil {
-                                return "", fmt.Errorf("database error: %v", err)
+                                return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
                         
                         if len(employees) == 0 {
-                                return fmt.Sprintf("No employees found in %s department", args.Department), nil
+                                return fmt.Sprintf("No employees found in %s department", args.Department), verboseSteps, nil
                         }
                         
                         result := fmt.Sprintf("👥 Employees in %s:\n\n", args.Department)
@@ -320,14 +328,14 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 result += fmt.Sprintf("• ID: %d | %s (%s) | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, emp.Email)
                         }
-                        return result, nil
+                        return result, verboseSteps, nil
                         
                 case "get_employee_reporting_structure":
                         var args struct {
                                 EmployeeName string `json:"employee_name"`
                         }
                         if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                                return "", fmt.Errorf("invalid arguments: %v", err)
+                                return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                         }
                         
                         // Find the employee
@@ -335,7 +343,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         if err := database.DB.Preload("Manager").Preload("Department").
                                 Where("LOWER(name) LIKE ?", "%"+strings.ToLower(args.EmployeeName)+"%").
                                 First(&employee).Error; err != nil {
-                                return fmt.Sprintf("Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), nil
+                                return fmt.Sprintf("Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), verboseSteps, nil
                         }
                         
                         result := fmt.Sprintf("📊 Reporting Structure for %s:\n\n", employee.Name)
@@ -353,7 +361,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         // Find direct reports
                         var directReports []models.Employee
                         if err := database.DB.Where("manager_id = ?", employee.ID).Find(&directReports).Error; err != nil {
-                                return "", fmt.Errorf("database error: %v", err)
+                                return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
                         
                         if len(directReports) > 0 {
@@ -365,16 +373,16 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 result += "• Direct reports: None\n"
                         }
                         
-                        return result, nil
+                        return result, verboseSteps, nil
                         
         case "clock_in":
                 if userID == nil {
-                        return "⚠️ You need to be logged in to clock in.", nil
+                        return "⚠️ You need to be logged in to clock in.", verboseSteps, nil
                 }
                 
                 var employee models.Employee
                 if err := database.DB.Where("user_id = ?", userID).First(&employee).Error; err != nil {
-                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                        return "❌ I couldn't find your employee record. Please contact HR.", verboseSteps, nil
                 }
                 
                 var existingAttendance models.Attendance
@@ -387,7 +395,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 clockOutStatus = fmt.Sprintf(" (clocked out at %s)", existingAttendance.ClockOut.Format("3:04 PM"))
                         }
                         return fmt.Sprintf("✅ You already clocked in today at %s%s.", 
-                                existingAttendance.ClockIn.Format("3:04 PM"), clockOutStatus), nil
+                                existingAttendance.ClockIn.Format("3:04 PM"), clockOutStatus), verboseSteps, nil
                 }
                 
                 attendance := models.Attendance{
@@ -397,34 +405,34 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 }
                 
                 if err := database.DB.Create(&attendance).Error; err != nil {
-                        return "", fmt.Errorf("failed to record attendance: %v", err)
+                        return "", verboseSteps, fmt.Errorf("failed to record attendance: %v", err)
                 }
                 
                 result := fmt.Sprintf("✅ Attendance recorded successfully!\n\n👋 Welcome, %s!\n⏰ Clock-in time: %s\n\nHave a productive day!", 
                         employee.Name, attendance.ClockIn.Format("3:04 PM"))
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "clock_out":
                 if userID == nil {
-                        return "⚠️ You need to be logged in to clock out.", nil
+                        return "⚠️ You need to be logged in to clock out.", verboseSteps, nil
                 }
                 
                 var employee models.Employee
                 if err := database.DB.Where("user_id = ?", userID).First(&employee).Error; err != nil {
-                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                        return "❌ I couldn't find your employee record. Please contact HR.", verboseSteps, nil
                 }
                 
                 var attendance models.Attendance
                 err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE AND clock_out IS NULL", employee.ID).First(&attendance).Error
                 if err != nil {
-                        return "❌ You don't have an active clock-in for today. Please clock in first!", nil
+                        return "❌ You don't have an active clock-in for today. Please clock in first!", verboseSteps, nil
                 }
                 
                 now := time.Now()
                 attendance.ClockOut = &now
                 
                 if err := database.DB.Save(&attendance).Error; err != nil {
-                        return "", fmt.Errorf("failed to update attendance: %v", err)
+                        return "", verboseSteps, fmt.Errorf("failed to update attendance: %v", err)
                 }
                 
                 duration := now.Sub(attendance.ClockIn)
@@ -433,7 +441,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 
                 result := fmt.Sprintf("✅ Successfully clocked out!\n\n👋 See you later, %s!\n⏰ Clock-out time: %s\n📊 Total time: %dh %dm\n\nHave a great evening!", 
                         employee.Name, now.Format("3:04 PM"), hours, minutes)
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "record_attendance_for_employee":
                 var args struct {
@@ -441,47 +449,47 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         Action       string `json:"action"`
                 }
                 if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                        return "", fmt.Errorf("invalid arguments: %v", err)
+                        return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                 }
                 
                 // Authorization: Only managers can record attendance for others
                 if userID == nil {
-                        return "⚠️ You need to be logged in to perform this action.", nil
+                        return "⚠️ You need to be logged in to perform this action.", verboseSteps, nil
                 }
                 
                 var requestingEmployee models.Employee
                 if err := database.DB.Preload("Reports").Where("user_id = ?", userID).First(&requestingEmployee).Error; err != nil {
-                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                        return "❌ I couldn't find your employee record. Please contact HR.", verboseSteps, nil
                 }
                 
                 // Check if user is a manager (has direct reports)
                 if len(requestingEmployee.Reports) == 0 {
-                        return "⚠️ Only managers can record attendance for other employees. This action requires manager privileges.", nil
+                        return "⚠️ Only managers can record attendance for other employees. This action requires manager privileges.", verboseSteps, nil
                 }
                 
                 var targetEmployee models.Employee
                 if err := database.DB.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(args.EmployeeName)+"%").
                         First(&targetEmployee).Error; err != nil {
-                        return fmt.Sprintf("Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), nil
+                        return fmt.Sprintf("Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), verboseSteps, nil
                 }
                 
                 // Verify the target employee reports to the requesting manager
                 if targetEmployee.ManagerID == nil || *targetEmployee.ManagerID != requestingEmployee.ID {
-                        return fmt.Sprintf("⚠️ You can only record attendance for your direct reports. %s does not report to you.", targetEmployee.Name), nil
+                        return fmt.Sprintf("⚠️ You can only record attendance for your direct reports. %s does not report to you.", targetEmployee.Name), verboseSteps, nil
                 }
                 
                 if args.Action == "clock_out" {
                         var attendance models.Attendance
                         err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE AND clock_out IS NULL", targetEmployee.ID).First(&attendance).Error
                         if err != nil {
-                                return fmt.Sprintf("❌ %s doesn't have an active clock-in for today.", targetEmployee.Name), nil
+                                return fmt.Sprintf("❌ %s doesn't have an active clock-in for today.", targetEmployee.Name), verboseSteps, nil
                         }
                         
                         now := time.Now()
                         attendance.ClockOut = &now
                         
                         if err := database.DB.Save(&attendance).Error; err != nil {
-                                return "", fmt.Errorf("failed to update attendance: %v", err)
+                                return "", verboseSteps, fmt.Errorf("failed to update attendance: %v", err)
                         }
                         
                         duration := now.Sub(attendance.ClockIn)
@@ -490,13 +498,13 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         
                         result := fmt.Sprintf("✅ Clock-out recorded for %s!\n\n⏰ Clock-out time: %s\n📊 Total time: %dh %dm", 
                                 targetEmployee.Name, now.Format("3:04 PM"), hours, minutes)
-                        return result, nil
+                        return result, verboseSteps, nil
                 } else {
                         var existingAttendance models.Attendance
                         err := database.DB.Where("employee_id = ? AND DATE(date) = CURRENT_DATE", targetEmployee.ID).First(&existingAttendance).Error
                         if err == nil {
                                 return fmt.Sprintf("✅ %s already clocked in today at %s.", 
-                                        targetEmployee.Name, existingAttendance.ClockIn.Format("3:04 PM")), nil
+                                        targetEmployee.Name, existingAttendance.ClockIn.Format("3:04 PM")), verboseSteps, nil
                         }
                         
                         attendance := models.Attendance{
@@ -506,12 +514,12 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         }
                         
                         if err := database.DB.Create(&attendance).Error; err != nil {
-                                return "", fmt.Errorf("failed to record attendance: %v", err)
+                                return "", verboseSteps, fmt.Errorf("failed to record attendance: %v", err)
                         }
                         
                         result := fmt.Sprintf("✅ Attendance recorded for %s!\n\n⏰ Clock-in time: %s", 
                                 targetEmployee.Name, attendance.ClockIn.Format("3:04 PM"))
-                        return result, nil
+                        return result, verboseSteps, nil
                 }
                 
         case "create_leave_request":
@@ -521,30 +529,30 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         LeaveType string `json:"leave_type"`
                 }
                 if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                        return "", fmt.Errorf("invalid arguments: %v", err)
+                        return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                 }
                 
                 if userID == nil {
-                        return "⚠️ You need to be logged in to create a leave request.", nil
+                        return "⚠️ You need to be logged in to create a leave request.", verboseSteps, nil
                 }
                 
                 var employee models.Employee
                 if err := database.DB.Where("user_id = ?", userID).First(&employee).Error; err != nil {
-                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                        return "❌ I couldn't find your employee record. Please contact HR.", verboseSteps, nil
                 }
                 
                 startDate, err := time.Parse("2006-01-02", args.StartDate)
                 if err != nil {
-                        return fmt.Sprintf("❌ Invalid start date format. Please use YYYY-MM-DD format (e.g., 2025-10-15)."), nil
+                        return "❌ Invalid start date format. Please use YYYY-MM-DD format (e.g., 2025-10-15).", verboseSteps, nil
                 }
                 
                 endDate, err := time.Parse("2006-01-02", args.EndDate)
                 if err != nil {
-                        return fmt.Sprintf("❌ Invalid end date format. Please use YYYY-MM-DD format (e.g., 2025-10-20)."), nil
+                        return "❌ Invalid end date format. Please use YYYY-MM-DD format (e.g., 2025-10-20).", verboseSteps, nil
                 }
                 
                 if endDate.Before(startDate) {
-                        return "❌ End date cannot be before start date.", nil
+                        return "❌ End date cannot be before start date.", verboseSteps, nil
                 }
                 
                 days := int(endDate.Sub(startDate).Hours()/24) + 1
@@ -558,7 +566,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 }
                 
                 if err := database.DB.Create(&leaveRequest).Error; err != nil {
-                        return "", fmt.Errorf("failed to create leave request: %v", err)
+                        return "", verboseSteps, fmt.Errorf("failed to create leave request: %v", err)
                 }
                 
                 result := fmt.Sprintf("✅ Leave request submitted successfully!\n\n"+
@@ -574,21 +582,21 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         startDate.Format("Jan 02, 2006"), 
                         endDate.Format("Jan 02, 2006"), 
                         days)
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "get_employee_details":
                 var args struct {
                         EmployeeName string `json:"employee_name"`
                 }
                 if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                        return "", fmt.Errorf("invalid arguments: %v", err)
+                        return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                 }
                 
                 var employee models.Employee
                 if err := database.DB.Preload("Department").Preload("Manager").
                         Where("LOWER(name) LIKE ?", "%"+strings.ToLower(args.EmployeeName)+"%").
                         First(&employee).Error; err != nil {
-                        return fmt.Sprintf("❌ Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), nil
+                        return fmt.Sprintf("❌ Employee '%s' not found. Please check the spelling and try again.", args.EmployeeName), verboseSteps, nil
                 }
                 
                 result := fmt.Sprintf("👤 Employee Details for %s:\n\n", employee.Name)
@@ -609,7 +617,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 if employee.WorkLocation != "" {
                         result += fmt.Sprintf("• Work Location: %s\n", employee.WorkLocation)
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "list_leave_requests":
                 var args struct {
@@ -643,14 +651,14 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 }
                 
                 if err := query.Find(&leaveRequests).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
                 
                 if len(leaveRequests) == 0 {
                         if args.Month != "" {
-                                return fmt.Sprintf("📅 No leave requests found for %s.", args.Month), nil
+                                return fmt.Sprintf("📅 No leave requests found for %s.", args.Month), verboseSteps, nil
                         }
-                        return "📅 No leave requests found.", nil
+                        return "📅 No leave requests found.", verboseSteps, nil
                 }
                 
                 result := "📅 Leave Requests:\n\n"
@@ -664,18 +672,18 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 result += "\n"
                         }
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "list_todays_attendance":
                 var attendances []models.Attendance
                 if err := database.DB.Preload("Employee").
                         Where("DATE(date) = CURRENT_DATE").
                         Find(&attendances).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
                 
                 if len(attendances) == 0 {
-                        return "📊 No one has clocked in today yet.", nil
+                        return "📊 No one has clocked in today yet.", verboseSteps, nil
                 }
                 
                 result := fmt.Sprintf("📊 Today's Attendance (%s):\n\n", time.Now().Format("Jan 02, 2006"))
@@ -693,25 +701,25 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         
                         result += fmt.Sprintf("%d. %s - %s %s\n", i+1, att.Employee.Name, status, timeInfo)
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "get_employees_by_work_location":
                 var args struct {
                         Location string `json:"location"`
                 }
                 if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                        return "", fmt.Errorf("invalid arguments: %v", err)
+                        return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                 }
                 
                 var employees []models.Employee
                 if err := database.DB.Preload("Department").
                         Where("LOWER(work_location) LIKE ?", "%"+strings.ToLower(args.Location)+"%").
                         Find(&employees).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
                 
                 if len(employees) == 0 {
-                        return fmt.Sprintf("No employees found at %s", args.Location), nil
+                        return fmt.Sprintf("No employees found at %s", args.Location), verboseSteps, nil
                 }
                 
                 result := fmt.Sprintf("📍 Employees at %s:\n\n", args.Location)
@@ -723,12 +731,12 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         result += fmt.Sprintf("• %s (%s) - %s | Location: %s\n", 
                                 emp.Name, emp.JobTitle, deptName, emp.WorkLocation)
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "get_employees_with_tenure":
                 var employees []models.Employee
                 if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
                 
                 type EmployeeTenure struct {
@@ -765,12 +773,12 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         result += fmt.Sprintf("• %s (%s) - %s | %.1f years of service\n", 
                                 t.Employee.Name, t.Employee.JobTitle, deptName, t.YearsOfService)
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "get_employee_salaries":
                 var employees []models.Employee
                 if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
                 
                 result := "💰 Employee Salaries:\n\n"
@@ -796,16 +804,16 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         result += fmt.Sprintf("• %s (%s) - %s | Salary: %s\n", 
                                 emp.Name, emp.JobTitle, deptName, salaryStr)
                 }
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "get_my_salary":
                 if userID == nil {
-                        return "⚠️ You need to be logged in to view your salary.", nil
+                        return "⚠️ You need to be logged in to view your salary.", verboseSteps, nil
                 }
                 
                 var employee models.Employee
                 if err := database.DB.Preload("Department").Where("user_id = ?", userID).First(&employee).Error; err != nil {
-                        return "❌ I couldn't find your employee record. Please contact HR.", nil
+                        return "❌ I couldn't find your employee record. Please contact HR.", verboseSteps, nil
                 }
                 
                 salaryStr := "Not specified"
@@ -828,14 +836,14 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                 
                 result := fmt.Sprintf("💰 Your Salary Information:\n\n• Name: %s\n• Job Title: %s\n• Department: %s\n• Salary: %s", 
                         employee.Name, employee.JobTitle, deptName, salaryStr)
-                return result, nil
+                return result, verboseSteps, nil
                 
         case "count_employees_by_type":
                 var args struct {
                         EmploymentType string `json:"employment_type"`
                 }
                 if err := json.Unmarshal([]byte(argumentsJSON), &args); err != nil {
-                        return "", fmt.Errorf("invalid arguments: %v", err)
+                        return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                 }
                 
                 if strings.ToLower(args.EmploymentType) == "all" {
@@ -853,7 +861,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 ORDER BY count DESC
                         `).Rows()
                         if err != nil {
-                                return "", fmt.Errorf("database error: %v", err)
+                                return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
                         defer rows.Close()
                         
@@ -862,7 +870,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                         for rows.Next() {
                                 var tc TypeCount
                                 if err := rows.Scan(&tc.Type, &tc.Count); err != nil {
-                                        return "", fmt.Errorf("scan error: %v", err)
+                                        return "", verboseSteps, fmt.Errorf("scan error: %v", err)
                                 }
                                 if tc.Type == "" {
                                         tc.Type = "Not specified"
@@ -871,37 +879,38 @@ func handleChatWithAI(userMessage string, history []map[string]string, userID in
                                 totalCount += tc.Count
                         }
                         result += fmt.Sprintf("\n📈 Total: %d employees", totalCount)
-                        return result, nil
+                        return result, verboseSteps, nil
                 } else {
                         // Count specific type
                         var count int64
                         if err := database.DB.Model(&models.Employee{}).
                                 Where("LOWER(employment_type) = ?", strings.ToLower(args.EmploymentType)).
                                 Count(&count).Error; err != nil {
-                                return "", fmt.Errorf("database error: %v", err)
+                                return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
-                        return fmt.Sprintf("📊 There are %d %s employees.", count, args.EmploymentType), nil
+                        return fmt.Sprintf("📊 There are %d %s employees.", count, args.EmploymentType), verboseSteps, nil
                 }
                 
         case "count_total_employees":
                 var count int64
                 if err := database.DB.Model(&models.Employee{}).Count(&count).Error; err != nil {
-                        return "", fmt.Errorf("database error: %v", err)
+                        return "", verboseSteps, fmt.Errorf("database error: %v", err)
                 }
-                return fmt.Sprintf("📊 Total number of employees: %d", count), nil
+                return fmt.Sprintf("📊 Total number of employees: %d", count), verboseSteps, nil
                 
                 default:
-                        return "", fmt.Errorf("unknown function: %s", functionName)
+                        return "", verboseSteps, fmt.Errorf("unknown function: %s", functionName)
                 }
         }
         
-        return "", nil
+        return "", verboseSteps, nil
 }
 
 func Chat(c *gin.Context) {
         var input struct {
                 Message  string `json:"message" binding:"required"`
                 History  []map[string]string `json:"history"`
+                Verbose  bool `json:"verbose"`
         }
 
         if err := c.ShouldBindJSON(&input); err != nil {
@@ -911,7 +920,7 @@ func Chat(c *gin.Context) {
 
         userID, _ := c.Get("userID")
 
-        aiResponse, err := handleChatWithAI(input.Message, input.History, userID)
+        aiResponse, verboseSteps, err := handleChatWithAI(input.Message, input.History, input.Verbose, userID)
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{
                         "error": fmt.Sprintf("Failed to process request: %v", err),
@@ -919,7 +928,13 @@ func Chat(c *gin.Context) {
                 return
         }
 
-        c.JSON(http.StatusOK, gin.H{
+        response := gin.H{
                 "response": aiResponse,
-        })
+        }
+        
+        if input.Verbose && len(verboseSteps) > 0 {
+                response["verbose_steps"] = verboseSteps
+        }
+
+        c.JSON(http.StatusOK, response)
 }
