@@ -37,6 +37,13 @@ func getDepartments(employees []models.Employee) map[string]bool {
         return depts
 }
 
+func truncateString(s string, maxLen int) string {
+        if len(s) <= maxLen {
+                return s
+        }
+        return s[:maxLen] + "..."
+}
+
 // handleChatWithAI uses OpenAI function calling to intelligently handle all chatbot operations
 func handleChatWithAI(userMessage string, history []map[string]string, verbose bool, userID interface{}) (string, []string, error) {
         client := getOpenAIClient()
@@ -232,6 +239,10 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                 }
         }
         
+        if verbose {
+                verboseSteps = append(verboseSteps, fmt.Sprintf("📝 Built system prompt (%d characters) with %d settings", len(systemPrompt), len(settings)))
+        }
+        
         // Build messages array with conversation history
         messages := []openai.ChatCompletionMessageParamUnion{
                 openai.SystemMessage(systemPrompt),
@@ -249,6 +260,10 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
         // Add current user message
         messages = append(messages, openai.UserMessage(userMessage))
         
+        if verbose {
+                verboseSteps = append(verboseSteps, fmt.Sprintf("💬 Prepared %d messages (including %d history messages)", len(messages), len(history)))
+        }
+        
         // Initial API call
         params := openai.ChatCompletionNewParams{
                 Messages: messages,
@@ -257,7 +272,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
         }
         
         if verbose {
-                verboseSteps = append(verboseSteps, "🔍 Analyzing your question...")
+                verboseSteps = append(verboseSteps, fmt.Sprintf("🤖 Calling OpenAI API (model: gpt-4o-mini, %d tools available)", len(tools)))
         }
         
         response, err := client.Chat.Completions.New(ctx, params)
@@ -270,12 +285,17 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
         if len(toolCalls) == 0 {
                 // No function call, return direct response
                 if verbose {
-                        verboseSteps = append(verboseSteps, "💬 Responding directly without database access")
+                        verboseSteps = append(verboseSteps, "✅ OpenAI responded directly (no function calls needed)")
+                        verboseSteps = append(verboseSteps, fmt.Sprintf("💬 Response: \"%s...\"", truncateString(response.Choices[0].Message.Content, 50)))
                 }
                 if len(response.Choices) > 0 {
                         return response.Choices[0].Message.Content, verboseSteps, nil
                 }
                 return "", verboseSteps, fmt.Errorf("no response from AI")
+        }
+        
+        if verbose {
+                verboseSteps = append(verboseSteps, fmt.Sprintf("🔧 OpenAI wants to call %d function(s)", len(toolCalls)))
         }
         
         // Add assistant's message to conversation
@@ -286,11 +306,25 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                 functionName := toolCall.Function.Name
                 argumentsJSON := toolCall.Function.Arguments
                 
+                if verbose {
+                        verboseSteps = append(verboseSteps, fmt.Sprintf("📞 Calling function: %s", functionName))
+                        if argumentsJSON != "" {
+                                verboseSteps = append(verboseSteps, fmt.Sprintf("   Parameters: %s", argumentsJSON))
+                        }
+                }
+                
                 switch functionName {
                 case "list_all_employees":
+                        if verbose {
+                                verboseSteps = append(verboseSteps, "🔍 Querying database: SELECT * FROM employees")
+                        }
                         var employees []models.Employee
                         if err := database.DB.Preload("Department").Find(&employees).Error; err != nil {
                                 return "", verboseSteps, fmt.Errorf("database error: %v", err)
+                        }
+                        
+                        if verbose {
+                                verboseSteps = append(verboseSteps, fmt.Sprintf("✅ Found %d employees in database", len(employees)))
                         }
                         
                         result := "📋 Employee List:\n\n"
@@ -302,7 +336,23 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 result += fmt.Sprintf("• ID: %d | %s (%s) - %s | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, deptName, emp.Email)
                         }
-                        return result, verboseSteps, nil
+                        
+                        if verbose {
+                                verboseSteps = append(verboseSteps, "📤 Sending results back to OpenAI for formatting...")
+                        }
+                        
+                        // Add function result and get final response
+                        params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
+                        finalResponse, err := client.Chat.Completions.New(ctx, params)
+                        if err != nil {
+                                return "", verboseSteps, err
+                        }
+                        
+                        if verbose {
+                                verboseSteps = append(verboseSteps, "✅ Received formatted response from OpenAI")
+                        }
+                        
+                        return finalResponse.Choices[0].Message.Content, verboseSteps, nil
                         
                 case "get_employees_by_department":
                         var args struct {
@@ -312,6 +362,10 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 return "", verboseSteps, fmt.Errorf("invalid arguments: %v", err)
                         }
                         
+                        if verbose {
+                                verboseSteps = append(verboseSteps, fmt.Sprintf("🔍 Querying database: SELECT * FROM employees WHERE department = '%s'", args.Department))
+                        }
+                        
                         var employees []models.Employee
                         if err := database.DB.Preload("Department").Joins("JOIN departments ON departments.id = employees.department_id").
                                 Where("LOWER(departments.name) LIKE ?", "%"+strings.ToLower(args.Department)+"%").
@@ -319,8 +373,18 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 return "", verboseSteps, fmt.Errorf("database error: %v", err)
                         }
                         
+                        if verbose {
+                                verboseSteps = append(verboseSteps, fmt.Sprintf("✅ Found %d employees in %s department", len(employees), args.Department))
+                        }
+                        
                         if len(employees) == 0 {
-                                return fmt.Sprintf("No employees found in %s department", args.Department), verboseSteps, nil
+                                result := fmt.Sprintf("No employees found in %s department", args.Department)
+                                params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
+                                finalResponse, err := client.Chat.Completions.New(ctx, params)
+                                if err != nil {
+                                        return "", verboseSteps, err
+                                }
+                                return finalResponse.Choices[0].Message.Content, verboseSteps, nil
                         }
                         
                         result := fmt.Sprintf("👥 Employees in %s:\n\n", args.Department)
@@ -328,7 +392,22 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
                                 result += fmt.Sprintf("• ID: %d | %s (%s) | Email: %s\n", 
                                         emp.ID, emp.Name, emp.JobTitle, emp.Email)
                         }
-                        return result, verboseSteps, nil
+                        
+                        if verbose {
+                                verboseSteps = append(verboseSteps, "📤 Sending results back to OpenAI for formatting...")
+                        }
+                        
+                        params.Messages = append(params.Messages, openai.ToolMessage(toolCall.ID, result))
+                        finalResponse, err := client.Chat.Completions.New(ctx, params)
+                        if err != nil {
+                                return "", verboseSteps, err
+                        }
+                        
+                        if verbose {
+                                verboseSteps = append(verboseSteps, "✅ Received formatted response from OpenAI")
+                        }
+                        
+                        return finalResponse.Choices[0].Message.Content, verboseSteps, nil
                         
                 case "get_employee_reporting_structure":
                         var args struct {
