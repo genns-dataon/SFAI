@@ -68,4 +68,4 @@ channel = "stable-25_05"
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd server && ./hcm-server"]
-build = ["bash", "-c", "(cd client && npm run build) && (cd server && go build -o hcm-server main.go)"]
+build = ["bash", "-c", "cd client && npm run build && cd .. && cd server && go build -o hcm-server main.go"]
