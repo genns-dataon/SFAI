@@ -241,6 +241,7 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
         
         if verbose {
                 verboseSteps = append(verboseSteps, fmt.Sprintf("📝 Built system prompt (%d characters) with %d settings", len(systemPrompt), len(settings)))
+                verboseSteps = append(verboseSteps, fmt.Sprintf("   System Prompt: \"%s\"", systemPrompt))
         }
         
         // Build messages array with conversation history
@@ -262,6 +263,18 @@ func handleChatWithAI(userMessage string, history []map[string]string, verbose b
         
         if verbose {
                 verboseSteps = append(verboseSteps, fmt.Sprintf("💬 Prepared %d messages (including %d history messages)", len(messages), len(history)))
+                verboseSteps = append(verboseSteps, "   Messages being sent to OpenAI:")
+                verboseSteps = append(verboseSteps, "   1. [SYSTEM] System prompt")
+                msgNum := 2
+                for _, msg := range history {
+                        role := "USER"
+                        if msg["role"] == "assistant" {
+                                role = "ASSISTANT"
+                        }
+                        verboseSteps = append(verboseSteps, fmt.Sprintf("   %d. [%s] \"%s\"", msgNum, role, truncateString(msg["content"], 60)))
+                        msgNum++
+                }
+                verboseSteps = append(verboseSteps, fmt.Sprintf("   %d. [USER] \"%s\"", msgNum, userMessage))
         }
         
         // Initial API call
