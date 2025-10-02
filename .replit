@@ -62,14 +62,10 @@ externalPort = 3000
 localPort = 40057
 externalPort = 3001
 
-[[ports]]
-localPort = 42799
-externalPort = 3003
-
 [nix]
 channel = "stable-25_05"
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd server && go run main.go"]
-build = ["npm", "run", "build"]
+run = ["bash", "-c", "cd server && PORT=8080 ./hcm-server"]
+build = ["bash", "-c", "cd client && npm run build && cd ../server && go build -o hcm-server main.go"]
